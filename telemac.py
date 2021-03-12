@@ -23,6 +23,30 @@ class Telemac(object):
             Possibility to import a list of time steps
 
         """
+        # Initialize header attributes.
+        self.vnames = None
+        self.vunits = None
+        self.float_type = None
+        self.float_size = None
+        self.nelem = None
+        self.npoin = None
+        self.ndp = None
+        self.ikle = None
+        self.ipobo = None
+        self.x = None
+        self.y = None
+        self.times = None
+
+        # Initialize variable attributes (only Telemac variables used in
+        # Demeter, the list will be updated depending on needs).
+        self.u = None   # Velocity u
+        self.v = None   # Velocity v
+        self.s = None   # Free surface
+        self.b = None   # Bottom
+        self.t = None   # Suspended mud concentration
+        self.r = None   # Rigid bed
+        self.m = None   # Bottom mud mass
+
         # Open file.
         slf = pps.ppSELAFIN(filename)
 
@@ -47,7 +71,7 @@ class Telemac(object):
         float_type, float_size = slf.getPrecision()
         nelem, npoin, ndp, ikle, ipobo, x, y = slf.getMesh()
 
-        # Attributes.
+        # Update attributes.
         self.vnames = vnames
         self.vunits = vunits
         self.float_type = float_type
@@ -74,13 +98,8 @@ class Telemac(object):
         slf.readTimes()
         times = slf.getTimes()
 
-        # If "times" is empty, the file only contains geometry.
-        if len(times) == 0:
-            self.times = []
-            self.vnames = []
-            self.vunits = []
-
-        else:
+        # No data to read if "times" is empty.
+        if len(times) > 0:
             # Times.
             # Only the time steps given in "step" are imported. If "step" is not
             # provided (default), all time steps are imported.
@@ -117,16 +136,16 @@ class Telemac(object):
                 self.vnames = new_vnames
                 self.vunits = new_vunits
 
-        # Initialize data array.
-        data = np.zeros((len(self.times), len(self.vnames), self.npoin))
+            # Initialize data array.
+            data = np.zeros((len(self.times), len(self.vnames), self.npoin))
 
-        # Read data.
-        for i in range(len(self.times)):
-            slf.readVariables(step[i])
-            data[i, :, :] = slf.getVarValues()[vids, :]
+            # Read data.
+            for i in range(len(self.times)):
+                slf.readVariables(step[i])
+                data[i, :, :] = slf.getVarValues()[vids, :]
 
-        # Assign variables.
-        self.assign_variables(data)
+            # Assign variables.
+            self.assign_variables(data)
 
     ############################################################################
     def assign_variables(self, data):
@@ -136,58 +155,55 @@ class Telemac(object):
             data (NumPy array): data imported by read_data
 
         """
-        # Initialize Telemac variables (only those used in Demeter, the list
-        # will be updated depending on needs).
-        self.u = None   # Velocity u
-        self.v = None   # Velocity v
-        self.s = None   # Free surface
-        self.b = None   # Bottom
-        self.t = None   # Tracer (here, cohesive sediments)
-        self.r = None   # Non-erodible bottom
-        self.m = None   # Mass of cohesive sediments per layer
+        # Simple variables.
+        for vname in self.vnames:
+            if vname.lower().strip() == 'velocity u':
+                self.u = data[:, self.vnames.index(vname), :]
+            if vname.lower().strip() == 'velocity v':
+                self.v = data[:, self.vnames.index(vname), :]
+            if vname.lower().strip() == 'free surface':
+                self.s = data[:, self.vnames.index(vname), :]
+            if vname.lower().strip() == 'bottom':
+                self.b = data[:, self.vnames.index(vname), :]
+            if vname.lower().strip() == 'rigid bed':
+                self.r = data[:, self.vnames.index(vname), :]
 
-        # No values to assign if self.times is empty
-        if len(self.times) > 0:
+        # Determine the number of mud classes.
+        nc = 0
+        for vname in self.vnames:
+            if vname.lower().strip()[:12] == 'coh sediment':
+                nc = np.maximum(nc, int(vname[12:14]))
 
-            # Simple variables.
-            for vname in self.vnames:
-                if vname.lower().strip() == 'velocity u':
-                    self.u = data[:, self.vnames.index(vname), :]
-                if vname.lower().strip() == 'velocity v':
-                    self.v = data[:, self.vnames.index(vname), :]
-                if vname.lower().strip() == 'free surface':
-                    self.s = data[:, self.vnames.index(vname), :]
-                if vname.lower().strip() == 'bottom':
-                    self.b = data[:, self.vnames.index(vname), :]
-                if vname.lower().strip() == 'rigid bed':
-                    self.r = data[:, self.vnames.index(vname), :]
+        # Determine the number of mud layers.
+        nl = 0
+        for vname in self.vnames:
+            if vname.lower().strip()[5:13] == 'mass mud':
+                nl = np.maximum(nl, int(vname[3:5]))
 
-            # Determine the number of cohesive sediment classes.
-            nc = 0
-            for vname in self.vnames:
-                if vname.lower().strip()[:12] == 'coh sediment':
-                    nc = np.maximum(nc, int(vname[12:14]))
+        # Suspended mud concentration array.
+        self.t = np.zeros((nc, len(self.times), self.npoin))
+        for vname in self.vnames:
+            if vname.lower().strip()[:12] == 'coh sediment':
+                i = int(vname[12:14]) - 1
+                self.t[i, :, :] = data[:, self.vnames.index(vname), :]
 
-            # Determine the number of cohesive sediment layers.
-            nl = 0
-            for vname in self.vnames:
-                if vname.lower().strip()[5:13] == 'mass mud':
-                    nl = np.maximum(nl, int(vname[3:5]))
+        # Bottom mud mass array.
+        self.m = np.zeros((nl, nc, len(self.times), self.npoin))
+        for vname in self.vnames:
+            if vname.lower().strip()[5:13] == 'mass mud':
+                i = int(vname[3:5]) - 1
+                j = int(vname[13:15]) - 1
+                self.m[i, j,  :, :] = data[:, self.vnames.index(vname), :]
 
-            # Tracer array.
-            self.t = np.zeros((nc, len(self.times), self.npoin))
-            for vname in self.vnames:
-                if vname.lower().strip()[:12] == 'coh sediment':
-                    i = int(vname[12:14]) - 1
-                    self.t[i, :, :] = data[:, self.vnames.index(vname), :]
+    ############################################################################
+    def add_variable(self, v, vname):
+        """Add variable to Telemac instance.
 
-            # Mass of cohesive sediments per layer array.
-            self.m = np.zeros((nl, nc, len(self.times), self.npoin))
-            for vname in self.vnames:
-                if vname.lower().strip()[5:13] == 'mass mud':
-                    i = int(vname[3:5]) - 1
-                    j = int(vname[13:15]) - 1
-                    self.m[i, j,  :, :] = data[:, self.vnames.index(vname), :]
+        Args:
+            v (NumPy array): data
+
+        """
+        print('todo')
 
 
 
