@@ -20,7 +20,8 @@ class Telemac(object):
                 Default to None (all time steps are imported).
 
         Todo:
-            Possibility to import a list of time steps
+            * Possibility to import a list of time steps
+            * Option to read or write Telemac file
 
         """
         # Initialize header attributes.
@@ -144,15 +145,15 @@ class Telemac(object):
                 slf.readVariables(step[i])
                 data[i, :, :] = slf.getVarValues()[vids, :]
 
-            # Assign variables.
-            self.assign_variables(data)
+            # Assign data.
+            self.assign_data(data)
 
     ############################################################################
-    def assign_variables(self, data):
+    def assign_data(self, data):
         """Assign Telemac file data to variable attributes.
 
         Args:
-            data (NumPy array): data imported by read_data
+            data (NumPy array): Data imported by read_data
 
         """
         # Simple variables.
@@ -195,6 +196,19 @@ class Telemac(object):
                 j = int(vname[13:15]) - 1
                 self.m[i, j,  :, :] = data[:, self.vnames.index(vname), :]
 
+        # Todo: Update vnames et vunits for suspended mud concentration and
+        #       bottom mud mass (only one variable, instead of multiple).
+
+    ############################################################################
+    def add_times(self, times)
+        """Add list of time steps to Telemac instance.
+
+        Args:
+            times (list of float): List of time steps.
+
+        """
+        self.times = times
+
     ############################################################################
     def add_variable(self, v, vname):
         """Add variable to Telemac instance.
@@ -203,11 +217,23 @@ class Telemac(object):
             v (NumPy array): data
 
         """
-        print('todo')
+        # Initialize list of variable names and units if needed.
+        if self.vnames is None:
+            self.vnames = []
+            self.vunits = []
+
+        # Check if variable is not already in the Telemac instance.
+
+        # Check array shape.
+
+        # Add variable.
+
+    ############################################################################
+    def append_times(self, time):
+        """Todo"""
 
 
-
-
-
-
+    ############################################################################
+    def append_variable(self, v, vname):
+        """Todo"""
 
