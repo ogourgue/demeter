@@ -23,8 +23,9 @@ class Telemac(object):
                 Default to None (all time steps are imported).
 
         Todo:
-            * Possibility to import a list of time steps
-            * Option to read or write Telemac file
+            * Possibility to import a list of time steps.
+            * Option to read or write Telemac file.
+            * Update for more than one mud layer/class.
 
         """
         # Initialize header attributes.
@@ -51,6 +52,9 @@ class Telemac(object):
         self.t = None   # Suspended mud concentration
         self.r = None   # Rigid bed
         self.m = None   # Bottom mud mass
+
+        # Initialize parameter attributes
+        self.rho = None
 
         # Open file.
         slf = pps.ppSELAFIN(filename)
@@ -214,7 +218,7 @@ class Telemac(object):
 
     ############################################################################
     def add_times(self, times):
-        """Add list of time steps to Telemac instance.
+        """Add a list of time steps to the Telemac instance.
 
         Args:
             times (list of float): List of time steps.
@@ -223,8 +227,24 @@ class Telemac(object):
         self.times = times
 
     ############################################################################
+    def add_parameter(self, param, pname):
+        """Add a parameter to the Telemac instance.
+
+        Args:
+            param: (List of) Parameter value(s).
+            pname: Parameter name.
+
+        """
+        # Layers mud concentration (means dry bulk density)
+        if pname == 'layers mud concentration':
+            if type(param) in [int, float]:
+                self.rho = [param]
+            else:
+                self.rho = param
+
+    ############################################################################
     def add_variable(self, v, vname):
-        """Add variable to Telemac instance.
+        """Add a variable to the Telemac instance.
 
         Args:
             v (NumPy array):
@@ -287,7 +307,7 @@ class Telemac(object):
         elif vname == 'coh sediment':
             self.t = v
         elif vname == 'mass mud':
-            self.m =v
+            self.m =  v
         else:
             print('Error: "' + vname + '" is not implemented in the Telemac ' +
                   'class of Demeter')
@@ -303,8 +323,69 @@ class Telemac(object):
         print('Todo')
 
     ############################################################################
-    def diffuse_bottom(self, nu, dt, t = 1, step = -1, option = 'conservative'):
-        print('Todo')
+    def diffuse_bottom(self, nu, dt, t = 1, step = -1, option = 'mass'):
+        """Smooth the bottom surface by diffusion.
+
+        Args:
+            nu (float): Diffusion coefficient (m^2/s).
+            dt (float): Time step (s).
+            t (float, optional): Duration of diffusion (s). Default to 1 s.
+            step (int, optional): Telemac time step on which the diffusion is
+                applied. Default to -1 for last time step.
+            option (str, optional): Option to determine priority when conserving
+                both sediment mass and rigid bed surface is in conflict.
+                Default to "mass" for priority given to mass conservation.
+                "rigid" for priority given to rigid bed surface conservation.
+
+        Todo:
+            * MPI implementation.ls
+            * Update for more than one mud layer/class.
+
+        """
+        # Check required variables.
+        if self.b is None:
+            print('Error: The variable "bottom" is needed to diffuse the ' +
+                  'bottom.')
+            sys.exit()
+        if self.r is None:
+            print('Error: The variable "rigid bed" is needed to diffuse the ' +
+                  'bottom.')
+            sys.exit()
+        if self.m is None:
+            print('Error: The variable "mass mud" is needed to diffuse the ' +
+                  'bottom.')
+            sys.exit()
+        if (self.m.shape[0] > 1) or (self.m.shape[1] > 1):
+            print('Error: Bottom diffusion for several sediment layers or '
+                  'several sediment classes is not implemented.')
+            sys.exit()
+
+        # Class attributes.
+        x = self.x
+        y = self.y
+        b0 = self.b[step, :]
+        tri = self.ikle - 1
+        r0 = self.r[step, :]
+        rho = self.rho
+
+        # Diffuse bottom surface.
+        bi = diffusion(x, y, b0, tri, nu, dt, t)
+
+        # Conservation.
+        if option == 'mass':
+            b1 = bi
+            r1 = np.minimum(r0, b1)
+        elif option == 'rigid':
+            r1 = r0
+            b0 = np.maximum(bi, r1)
+        else:
+            print('Error: Option must be either mass or rigid.')
+            sys.exit()
+
+        # Update class attributes
+        self.b[step, :] = b1
+        self.r[step, :] = r1
+        self.m[0, 0, step, :] = rho * (b1 - r1)
 
 ################################################################################
 def diffusion(x, y, f, tri, nu, dt, t = 1):
@@ -333,10 +414,10 @@ def diffusion(x, y, f, tri, nu, dt, t = 1):
     jac = np.zeros(ntri)
 
     # Initialize matrix A.
-    a = lil_matrix((npoin, npoin))
+    a = scipy.sparse.lil_matrix((npoin, npoin))
 
     # Initialize matrix b.
-    b = lil_matrix((npoin, npoin))
+    b = scipy.sparse.lil_matrix((npoin, npoin))
 
     # Compute Jacobian determinant matrix.
     for i in range(len(tri)):
