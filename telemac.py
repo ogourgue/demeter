@@ -447,8 +447,9 @@ class Telemac(object):
                 "rigid" for priority given to rigid bed surface conservation.
 
         Todo:
-            * MPI implementation.ls
-            * Update for more than one mud layer/class.
+            * MPI implementation.
+            * Update for more than one mud layer/class (e.g., different rho
+              values).
 
         """
         # Check required variables.
@@ -472,12 +473,17 @@ class Telemac(object):
         # Class attributes.
         x = self.x
         y = self.y
-        b0 = self.b[step, :]
         tri = self.ikle - 1
-        r0 = self.r[step, :]
         rho = self.rho
+        u0 = self.u[step, :]
+        v0 = self.v[step, :]
+        s0 = self.s[step, :]
+        b0 = self.b[step, :]
+        r0 = self.r[step, :]
+        t0 = self.t[0, step, :]
 
         # Diffuse bottom surface.
+        # Attention: t is time, not the Telemac variable for cohesive sediments.
         bi = diffusion(x, y, b0, tri, nu, dt, t)
 
         # Conservation.
@@ -486,15 +492,26 @@ class Telemac(object):
             r1 = np.minimum(r0, b1)
         elif option == 'rigid':
             r1 = r0
-            b0 = np.maximum(bi, r1)
+            b1 = np.maximum(bi, r1)
         else:
             print('Error: Option must be either mass or rigid.')
             sys.exit()
 
+        # Update other variables.
+        s1 = np.maximum(s0, b1)
+        u1 = u0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        m1 = rho * (b1 - r1)
+
         # Update class attributes
+        self.u[step, :] = u1
+        self.v[step, :] = v1
+        self.s[step, :] = s1
         self.b[step, :] = b1
         self.r[step, :] = r1
-        self.m[0, 0, step, :] = rho * (b1 - r1)
+        self.t[0, step, :] = t1
+        self.m[0, 0, step, :] = m1
 
 ################################################################################
 def diffusion(x, y, f, tri, nu, dt, t = 1):
@@ -617,4 +634,3 @@ def diffusion(x, y, f, tri, nu, dt, t = 1):
         f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * dt * b.dot(f0))
 
     return f1
-
