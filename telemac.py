@@ -356,7 +356,8 @@ class Telemac(object):
         """Add a variable to the Telemac instance.
 
         Args:
-            v (NumPy array):
+            v (NumPy array): Telemac grid node values of the variable to add.
+            vname (str): Name of the variable to add.
 
         """
         # Initialize list of variable if needed.
@@ -366,7 +367,7 @@ class Telemac(object):
         # Check if variable is not already in the Telemac instance.
         for dem_vname in self.dem_vnames:
             if vname == dem_vname:
-                print('Error: "' + vname + '" already exists in the Telemac ' +
+                print('Error: ' + vname + ' already exists in the Telemac ' +
                       'instance.')
                 sys.exit()
 
@@ -384,19 +385,19 @@ class Telemac(object):
         # Check number of array dimensions.
         if vname == 'coh sediment':
             if v.ndim != 3:
-                print('Error: "coh sediment" must be an array of shape ' +
+                print('Error: coh sediment must be an array of shape ' +
                       '(number of mud classes, number of time steps, number ' +
                       'of Telemac grid nodes)')
                 sys.exit()
         elif vname == 'mass mud':
             if v.ndim != 4:
-                print('Error: "mass mud" must be an array of shape (number ' +
-                      'of mud layers, number of mud classes, number of time ' +
+                print('Error: mass mud must be an array of shape (number of ' +
+                      'mud layers, number of mud classes, number of time ' +
                       'steps, number of Telemac grid nodes)')
                 sys.exit()
         elif v.ndim != 2:
-            print('Error: "' + vname + '" must be an array of shape (number ' +
-                  'of time steps, number of Telemac grid nodes)')
+            print('Error: ' + vname + ' must be an array of shape (number of ' +
+                  'time steps, number of Telemac grid nodes)')
             sys.exit()
 
         # Add variable name.
@@ -416,20 +417,70 @@ class Telemac(object):
         elif vname == 'coh sediment':
             self.t = v
         elif vname == 'mass mud':
-            self.m =  v
+            self.m = v
         else:
-            print('Error: "' + vname + '" is not implemented in the Telemac ' +
+            print('Error: ' + vname + ' is not implemented in the Telemac ' +
                   'class of Demeter')
             sys.exit()
 
     ############################################################################
     def append_times(self, time):
         print('Todo')
+        """
+        Procedures:
+            1) Append variables.
+            2) Append times, and check that every variables have been appended.
+        """
 
 
     ############################################################################
     def append_variable(self, v, vname):
-        print('Todo')
+        """Append data to a variable of the Telemac instance.
+
+        Args:
+            v (NumPy array): Values to append to the Telemac variable.
+            vname (str): Name of the variable.
+
+        """
+        # Check if variable already exists.
+        if vname not in self.dem_vnames:
+            print('Error: ' + vname + ' is not a variable of the Telemac ' +
+                  'instance.')
+            sys.exit()
+
+        # Check array shape.
+        if vname == 'coh sediment':
+            if v.shape != (self.t.shape[0], 1, self.npoin):
+                print('Error: an array of shape (number of mud classes, 1, ' +
+                      'number of Telemac grid nodes) must be appended to coh ' +
+                      'sediment')
+                sys.exit()
+        elif vname == 'mass mud':
+            if v.shape != (self.m.shape[0], self.m.shape[1], 1, self.npoin):
+                print('Error: an array of shape (number of mud layers, ' +
+                      'number of mud classes, 1, number of Telemac grid ' +
+                      'nodes) must be appended to mass mud')
+                sys.exit()
+        elif v.shape != (1, self.npoin):
+            print('Error: an array of shape (1, number of Telemac grid ' +
+                  'nodes) must be appended to ' + vname + '.')
+            sys.exit()
+
+        # Append variable.
+        if vname == 'velocity u':
+            self.u = np.append(self.u, v, axis = 0)
+        elif vname == 'velocity v':
+            self.v = np.append(self.v, v, axis = 0)
+        elif vname == 'free surface':
+            self.s = np.append(self.s, v, axis = 0)
+        elif vname == 'bottom':
+            self.b = np.append(self.b, v, axis = 0)
+        elif vname == 'rigid bed':
+            self.r = np.append(self.r, v, axis = 0)
+        elif vname == 'coh sediment':
+            self.t = np.append(self.t, v, axis = 1)
+        elif vname == 'mass mud':
+            self.m = np.append(self.m, v, axis = 2)
 
     ############################################################################
     def diffuse_bottom(self, nu, dt, t = 1, step = -1, option = 'mass'):
