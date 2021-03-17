@@ -24,7 +24,6 @@ class Telemac(object):
 
         Todo:
             * Possibility to import a list of time steps.
-            * Option to read or write Telemac file.
             * Update for more than one mud layer/class.
 
         """
@@ -100,19 +99,19 @@ class Telemac(object):
         Args:
             slf (ppSELAFIN object): File to import.
             vnames (list of str): Names of the variables to import (None to import all the variables).
-            step (int): Time step to import (-1 for last time step; None to import all time steps ).
+            step (int): Time step to import (-1 for last time step; None to import all time steps).
 
         """
         # Read times.
         slf.readTimes()
         times = slf.getTimes()
 
-        # No data to read if "times" is empty.
+        # No data to read if times is empty.
         if len(times) > 0:
             # Times.
-            # Only the time steps given in "step" are imported. If "step" is not
+            # Only the time steps given in step are imported. If step is not
             # provided (default), all time steps are imported.
-            # Convert "step" into a list and treat last time step.
+            # Convert step into a list and treat last time step.
             if step is None:
                 self.times = times
                 step = range(len(times))
@@ -124,10 +123,9 @@ class Telemac(object):
                     step = [step]
 
             # Variable names and units.
-            # Only the variables given in "vname" are imported. If "vname" is
-            # not provided (default), all variables are imported
-            # (self.tel_vnames and self.tel_units are then kept as assigned in
-            # read_header).
+            # Only the variables given in vnames are imported. If vnames is not
+            # provided (default), all variables are imported (self.tel_vnames
+            # and self.tel_units are then kept as assigned in read_header).
             if vnames is None:
                 tel_vids = list(range(len(self.tel_vnames)))
             else:
@@ -215,6 +213,117 @@ class Telemac(object):
                 j = int(tel_vname[13:15]) - 1
                 self.m[i, j,  :, :] = data[:, self.tel_vnames.index(tel_vname),
                                            :]
+
+    ############################################################################
+    def export(self, filename, vnames = None, step = None):
+        """Export Telemac output file.
+
+        Args:
+            filename (str): Name of the file to export.
+            vnames (list of str, optional): Names of the variables to export.
+                Default to None (all variables are exported).
+            step (int, optional): Time step to export (-1 for last time step).
+                Default to None (all time steps are imported).
+
+        """
+        # List of Demeter variable names.
+        if vnames is None:
+            dem_vnames = self.dem_vnames
+        else:
+            dem_vnames = vnames
+
+        # Lists of time steps.
+        if step is None:
+            steps = list(range(len(self.times)))
+        else:
+            steps = [step]
+
+        # Number of variables to export.
+        nv = len(dem_vnames)
+        if ('coh sediment' in dem_vnames) and (self.t is not None):
+            nv += self.t.shape[0] - 1
+        if ('mass mud' in dem_vnames) and (self.m is not None):
+            nv += self.m.shape[0] * self.m.shape[1] - 1
+
+        # Lists of Telemac variable names and units
+        tel_vnames = []
+        tel_vunits = []
+        for dem_vname in dem_vnames:
+            if dem_vname == 'velocity u':
+                tel_vnames.append('VELOCITY U'.ljust(16))
+                tel_vunits.append('M/S'.ljust(16))
+            elif dem_vname == 'velocity v':
+                tel_vnames.append('VELOCITY V'.ljust(16))
+                tel_vunits.append('M/S'.ljust(16))
+            elif dem_vname == 'free surface':
+                tel_vnames.append('FREE SURFACE'.ljust(16))
+                tel_vunits.append('M'.ljust(16))
+            elif dem_vname == 'bottom':
+                tel_vnames.append('BOTTOM'.ljust(16))
+                tel_vunits.append('M'.ljust(16))
+            elif dem_vname == 'coh sediment':
+                for i in range(self.t.shape[0]):
+                    tel_vnames.append('COH SEDIMENT%d'.ljust(16) % (i + 1))
+                    tel_vunits.append('g/l'.ljust(16))
+            elif dem_vname == 'rigid bed':
+                tel_vnames.append('RIGID BED'.ljust(16))
+                tel_vunits.append('M'.ljust(16))
+            elif dem_vname == 'mass mud':
+                for i in range(self.m.shape[0]):
+                    for j in range(self.m.shape[1]):
+                        tel_vnames.append('LAY%d MASS MUD%d'.ljust(16) %
+                                          (i + 1, j + 1))
+                        tel_vunits.append(''.ljust(16))
+
+        # Open file.
+        slf = pps.ppSELAFIN(filename)
+
+        # Export header
+        slf.setPrecision(self.float_type, self.float_size)
+        slf.setTitle('')
+        slf.setVarNames(tel_vnames)
+        slf.setVarUnits(tel_vunits)
+        slf.setIPARAM([1, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+        slf.setMesh(self.nelem, self.npoin, self.ndp, self.ikle, self.ipobo,
+                    self.x, self.y)
+        slf.writeHeader()
+
+        # Export data per time step.
+        for step in steps:
+            # Initialize data array and variable index
+            data = np.zeros((nv, self.npoin))
+            vid = 0
+            # Feed data array.
+            for dem_vname in dem_vnames:
+                if dem_vname == 'velocity u':
+                    data[vid, :] = self.u[step, :]
+                    vid += 1
+                elif dem_vname == 'velocity v':
+                    data[vid, :] = self.v[step, :]
+                    vid += 1
+                elif dem_vname == 'free surface':
+                    data[vid, :] = self.s[step, :]
+                    vid += 1
+                elif dem_vname == 'bottom':
+                    data[vid, :] = self.b[step, :]
+                    vid += 1
+                elif dem_vname == 'coh sediment':
+                    for i in range(self.t.shape[0]):
+                        data[vid, :] = self.t[i, step, :]
+                        vid += 1
+                elif dem_vname == 'rigid bed':
+                    data[vid, :] = self.r[step, :]
+                    vid += 1
+                elif dem_vname == 'mass mud':
+                    for i in range(self.m.shape[0]):
+                        for j in range(self.m.shape[1]):
+                            data[vid, :] = self.m[i, j, step, :]
+                            vid += 1
+            # Export data.
+            slf.writeVariables(self.times[step], data)
+
+        # Close file.
+        slf.close()
 
     ############################################################################
     def add_times(self, times):
