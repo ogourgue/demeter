@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
@@ -647,11 +649,11 @@ class Telemac(object):
         # Bottom surface elevation change before acceleration.
         db0 = b0 - bp
 
-        # Maximum elevation change before acceleration.
-        db0_max = np.max(db0)
+        # Maximum absolute elevation change before acceleration.
+        db0_max = np.max(np.abs(db0))
 
         # Adaptative morphological acceleration factor.
-        morfac = np.maximum(1, np.min([db_max / db0_max, morfac_max]))
+        morfac = np.clip(db_max / db0_max, 1, morfac_max)
 
         # Bottom surface elevation change after acceleration.
         bi = bp + morfac * db0
