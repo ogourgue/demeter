@@ -548,21 +548,15 @@ class Telemac(object):
         self.m[0, 0, step, :] = m1
 
     ############################################################################
-    def morphological_acceleration(self, morfac_max, db_max, pct = .95,
-                                   option = 'mass'):
-        """Accelerate morphological changes with an adaptative method.
+    def morphological_acceleration(self, morfac, option = 'mass'):
+        """Accelerate morphological changes.
 
         The changes in bottom surface elevation between two time steps of the
         Telemac instance (typically, between two Telemac runs) are multiplied by
-        a factor that can vary between 1 and morfac_max. Its values is
-        determined so that the maximum elevation change isn't higher than
-        db_max. Each variable in the last time step are updated accordingly.
+        a factor morfac.
 
         Args:
-            morfac_max (float): Maximum morphological acceleration factor.
-            db_max (float): Maximum elevation change between two time steps.
-            pct (float, optional): Quantile over which the maximum elevation
-                change is calculated. Default to 0.95.
+            morfac (float): Morphological acceleration factor.
             option (str, optional): Option to determine priority when conserving
                 both sediment mass and rigid bed surface is in conflict.
                 Default to "mass" for priority given to mass conservation.
@@ -587,12 +581,6 @@ class Telemac(object):
 
         # Bottom surface elevation change before acceleration.
         db0 = b0 - bp
-
-        # Maximum absolute elevation change before acceleration.
-        db0_max = np.quantile(np.abs(db0), .95)
-
-        # Adaptative morphological acceleration factor.
-        morfac = np.clip(db_max / db0_max, 1, morfac_max)
 
         # Bottom surface elevation change after acceleration.
         bi = bp + morfac * db0
