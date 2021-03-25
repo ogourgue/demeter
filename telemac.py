@@ -485,7 +485,7 @@ class Telemac(object):
             self.m = np.append(self.m, v, axis = 2)
 
     ############################################################################
-    def diffuse_bottom(self, nu, dt, t = 1, step = -1, option = 'mass'):
+    def diffuse_bottom(self, nu, dt, t = 1, step = -1):
         """Smooth the bottom surface by diffusion.
 
         Args:
@@ -494,14 +494,10 @@ class Telemac(object):
             t (float, optional): Duration of diffusion (s). Default to 1 s.
             step (int, optional): Telemac time step on which the diffusion is
                 applied. Default to -1 for last time step.
-            option (str, optional): Option to determine priority when conserving
-                both sediment mass and rigid bed surface is in conflict.
-                Default to "mass" for priority given to mass conservation.
-                "rigid" for priority given to rigid bed surface conservation.
 
         Todo:
-            * Update for more than one mud layer/class (e.g., different rho
-              values).
+            Update for more than one mud layer/class (e.g., different rho
+            values).
 
         """
         # Class attributes.
@@ -520,47 +516,86 @@ class Telemac(object):
         # Attention: t is time, not the Telemac variable for cohesive sediments.
         bi = diffusion(x, y, b0, tri, nu, dt, t)
 
-        # Conservation.
-        if option == 'mass':
-            b1 = bi
-            r1 = np.minimum(r0, b1)
-        elif option == 'rigid':
-            r1 = r0
-            b1 = np.maximum(bi, r1)
-        else:
-            print('Error: Option must be either mass or rigid.')
-            sys.exit()
+        # Treat the rigid bed.
+        b1 = np.maximum(bi, r0)
 
         # Update other variables.
         s1 = np.maximum(s0, b1)
         u1 = u0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
-        m1 = rho * (b1 - r1)
+        m1 = (b1 - r0) * rho
 
         # Update class attributes.
         self.u[step, :] = u1
         self.v[step, :] = v1
         self.s[step, :] = s1
         self.b[step, :] = b1
-        self.r[step, :] = r1
         self.t[0, step, :] = t1
         self.m[0, 0, step, :] = m1
 
     ############################################################################
-    def morphological_acceleration(self, morfac, option = 'mass'):
+    def diffuse_bottom_change(self, nu, dt, t = 1):
+        """Smooth the bottom surface elevation change by diffusion.
+
+        Args:
+            nu (float): Diffusion coefficient (m^2/s).
+            dt (float): Time step (s).
+            t (float, optional): Duration of diffusion (s). Default to 1 s.
+
+        Todo:
+            Update for more than one mud layer/class (e.g., different rho
+            values).
+
+        """
+        # Class attributes.
+        x = self.x
+        y = self.y
+        tri = self.ikle - 1
+        rho = self.rho
+        u0 = self.u[-1, :]
+        v0 = self.v[-1, :]
+        s0 = self.s[-1, :]
+        b0 = self.b[-1, :]
+        bp = self.b[-2, :]
+        r0 = self.r[-1, :]
+        t0 = self.t[0, -1, :]
+
+        # Bottom surface elevation change before diffusion.
+        db0 = b0 - bp
+
+        # Bottom surface elevation change after diffusion.
+        bi = bp + diffusion(x, y, db0, tri, nu, dt, t)
+
+        # Treat the rigid bed.
+        b1 = np.maximum(bi, r0)
+
+        # Update other variables
+        s1 = np.maximum(s0, b1)
+        u1 = u0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        m1 = rho * (b1 - r0)
+
+        # Update class attributes (including times).
+        self.u[-1, :] = u1
+        self.v[-1, :] = v1
+        self.s[-1, :] = s1
+        self.b[-1, :] = b1
+        self.t[0, -1, :] = t1
+        self.m[0, 0, -1, :] = m1
+
+    ############################################################################
+    def morphological_acceleration(self, morfac):
         """Accelerate morphological changes.
 
         The changes in bottom surface elevation between two time steps of the
         Telemac instance (typically, between two Telemac runs) are multiplied by
-        a factor morfac.
+        a factor morfac. Each variable in the last time step are updated
+        accordingly.
 
         Args:
             morfac (float): Morphological acceleration factor.
-            option (str, optional): Option to determine priority when conserving
-                both sediment mass and rigid bed surface is in conflict.
-                Default to "mass" for priority given to mass conservation.
-                "rigid" for priority given to rigid bed surface conservation.
 
         Todo:
             Update for more than one mud layer/class (e.g., different rho
@@ -585,23 +620,15 @@ class Telemac(object):
         # Bottom surface elevation change after acceleration.
         bi = bp + morfac * db0
 
-        # Conservation.
-        if option == 'mass':
-            b1 = bi
-            r1 = np.minimum(r0, b1)
-        elif option == 'rigid':
-            r1 = r0
-            b1 = np.maximum(bi, r1)
-        else:
-            print('Error: Option must be either mass or rigid.')
-            sys.exit()
+        # Treat the rigid bed.
+        b1 = np.maximum(bi, r0)
 
         # Update other variables
         s1 = np.maximum(s0, b1)
         u1 = u0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
-        m1 = rho * (b1 - r1)
+        m1 = (b1 - r0) * rho
         times_1 = times_p + (times_0 - times_p) * morfac
 
         # Update class attributes (including times).
@@ -609,10 +636,76 @@ class Telemac(object):
         self.v[-1, :] = v1
         self.s[-1, :] = s1
         self.b[-1, :] = b1
-        self.r[-1, :] = r1
         self.t[0, -1, :] = t1
         self.m[0, 0, -1, :] = m1
         self.times[-1] = times_1
+
+    ############################################################################
+    def morphological_acceleration_adaptive(self, morfac_max, db_max, q = .95):
+        """Accelerate morphological changes with an adaptive factor.
+
+        The changes in bottom surface elevation between two time steps of the
+        Telemac instance (typically, between two Telemac runs) are multiplied by
+        a factor morfac, whose values is determined so that the maximum
+        elevation change isn't higher than db_max. Each variable in the last
+        time step are updated accordingly.
+
+        Args:
+            morfac_max (float): Maximum morphological acceleration factor.
+            db_max (float): Maximum elevation change between two time steps.
+            q (float, optional): Quantile over which the maximum elevation
+            change is calculated. Default to 0.95.
+
+        Todo:
+            Update for more than one mud layer/class (e.g., different rho
+            values).
+
+        """
+        # Class attributes.
+        rho = self.rho
+        u0 = self.u[-1, :]
+        v0 = self.v[-1, :]
+        s0 = self.s[-1, :]
+        b0 = self.b[-1, :]
+        bp = self.b[-2, :]
+        r0 = self.r[-1, :]
+        t0 = self.t[0, -1, :]
+        times_0 = self.times[-1]
+        times_p = self.times[-2]
+
+        # Bottom surface elevation change before acceleration.
+        db0 = b0 - bp
+
+        # Maximum absolute elevation change before acceleration.
+        db0_max = np.quantile(np.abs(db0), q)
+
+        # Adaptative morphological acceleration factor.
+        morfac = np.minimum(db_max / db0_max, morfac_max)
+
+        # Bottom surface elevation change after acceleration.
+        bi = bp + morfac * db0
+
+        # Treat the rigid bed.
+        b1 = np.maximum(bi, r0)
+
+        # Update other variables
+        s1 = np.maximum(s0, b1)
+        u1 = u0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
+        m1 = (b1 - r0) * rho
+        times_1 = times_p + (times_0 - times_p) * morfac
+
+        # Update class attributes (including times).
+        self.u[-1, :] = u1
+        self.v[-1, :] = v1
+        self.s[-1, :] = s1
+        self.b[-1, :] = b1
+        self.t[0, -1, :] = t1
+        self.m[0, 0, -1, :] = m1
+        self.times[-1] = times_1
+
+        return morfac
 
 ################################################################################
 def diffusion(x, y, f, tri, nu, dt, t = 1):
@@ -636,9 +729,6 @@ def diffusion(x, y, f, tri, nu, dt, t = 1):
 
     # Number of triangles.
     ntri = len(tri)
-
-    # Number of time steps.
-    nt = np.int(np.ceil(t / dt))
 
     # Initialize Jacobian determinant matrix.
     jac = np.zeros(ntri)
@@ -729,12 +819,21 @@ def diffusion(x, y, f, tri, nu, dt, t = 1):
     # Initialize diffused array.
     f1 = f.copy()
 
+    # Initialize current time.
+    ti = 0
+
     # Diffusion loop.
-    for i in range(nt):
+    while ti < t - dt:
         # For each time step, the array to diffuse is the diffused array from
         # the previous time step.
         f0 = f1.copy()
         # Solve linear matrix equation.
         f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * dt * b.dot(f0))
+        # Update current time.
+        ti += dt
+
+    # Finale time step (t - ti <= dt).
+    f0 = f1.copy()
+    f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * (t - ti) * b.dot(f0))
 
     return f1
