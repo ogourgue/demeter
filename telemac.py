@@ -697,9 +697,9 @@ class Telemac(object):
 
         The changes in bottom surface elevation between two time steps of the
         Telemac instance (typically, between two Telemac runs) are multiplied by
-        a factor morfac, whose values is determined so that the maximum
-        elevation change isn't higher than db_max. Each variable in the last
-        time step are updated accordingly.
+        a factor morfac, whose value (higher than or equal to 1) is determined
+        so that the maximum elevation change isn't higher than db_max. Each
+        variable in the last time step are updated accordingly.
 
         Args:
             morfac_max (float): Maximum morphological acceleration factor.
@@ -733,7 +733,7 @@ class Telemac(object):
         db0_max = np.quantile(np.abs(db0), q)
 
         # Adaptative morphological acceleration factor.
-        morfac = np.minimum(db_max / db0_max, morfac_max)
+        morfac = np.clip(db_max / db0_max, 1, morfac_max)
 
         # Bottom surface elevation change after acceleration.
         b1 = bp + morfac * db0
