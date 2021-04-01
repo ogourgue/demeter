@@ -485,6 +485,42 @@ class Telemac(object):
             self.m = np.append(self.m, v, axis = 2)
 
     ############################################################################
+    def remove_time_step(self, step = 0):
+        """Remove one time step from all variables and the list of times.
+
+        Args:
+            step (int, optional): Time step index to remove. Default to 0.
+
+        """
+        # Class attributes.
+        times = self.times
+        u = self.u
+        v = self.v
+        s = self.s
+        b = self.b
+        r = self.r
+        t = self.t
+        m = self.m
+
+        # Remove time step.
+        times = times[:step] + times[step + 1:]
+        if u is not None:
+            u = np.concatenate((u[:step, :], u[step+1:, :]), axis = 0)
+        if v is not None:
+            v = np.concatenate((v[:step, :], v[step+1:, :]), axis = 0)
+        if s is not None:
+            s = np.concatenate((s[:step, :], s[step+1:, :]), axis = 0)
+        if b is not None:
+            b = np.concatenate((b[:step, :], b[step+1:, :]), axis = 0)
+        if r is not None:
+            r = np.concatenate((r[:step, :], r[step+1:, :]), axis = 0)
+        if t is not None:
+            t = np.concatenate((t[:, :step, :], t[:, step+1:, :]), axis = 1)
+        if m is not None:
+            m = np.concatenate((m[:, :, :step, :], m[:, :, step+1:, :]),
+                               axis = 2)
+
+    ############################################################################
     def diffuse_bottom(self, nu, dt, t = 1, step = -1):
         """Smooth the bottom surface by diffusion.
 
@@ -525,6 +561,9 @@ class Telemac(object):
         v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         m1 = (b1 - r0) * rho
+        u1[s1 - b1 <= 1e-3] = 0
+        v1[s1 - b1 <= 1e-3] = 0
+        t1[s1 - b1 <= 1e-3] = 0
 
         # Update class attributes.
         self.u[step, :] = u1
@@ -576,6 +615,9 @@ class Telemac(object):
         v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         m1 = rho * (b1 - r0)
+        u1[s1 - b1 <= 1e-3] = 0
+        v1[s1 - b1 <= 1e-3] = 0
+        t1[s1 - b1 <= 1e-3] = 0
 
         # Update class attributes (including times).
         self.u[-1, :] = u1
@@ -586,7 +628,7 @@ class Telemac(object):
         self.m[0, 0, -1, :] = m1
 
     ############################################################################
-    def morphological_acceleration(self, morfac):
+    def morphological_acceleration(self, morfac, bmax = None):
         """Accelerate morphological changes.
 
         The changes in bottom surface elevation between two time steps of the
@@ -596,6 +638,8 @@ class Telemac(object):
 
         Args:
             morfac (float): Morphological acceleration factor.
+            bmax (float, optional): The bottom surface elevation is clipped
+                above this value. Default to None (no clipping).
 
         Todo:
             Update for more than one mud layer/class (e.g., different rho
@@ -618,10 +662,13 @@ class Telemac(object):
         db0 = b0 - bp
 
         # Bottom surface elevation change after acceleration.
-        bi = bp + morfac * db0
+        b1 = bp + morfac * db0
 
         # Treat the rigid bed.
-        b1 = np.maximum(bi, r0)
+        b1 = np.maximum(b1, r0)
+
+        # Treat the maximum elevation.
+        b1 = np.minimum(b1, bmax)
 
         # Update other variables
         s1 = np.maximum(s0, b1)
@@ -630,6 +677,9 @@ class Telemac(object):
         t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         m1 = (b1 - r0) * rho
         times_1 = times_p + (times_0 - times_p) * morfac
+        u1[s1 - b1 <= 1e-3] = 0
+        v1[s1 - b1 <= 1e-3] = 0
+        t1[s1 - b1 <= 1e-3] = 0
 
         # Update class attributes (including times).
         self.u[-1, :] = u1
@@ -641,7 +691,8 @@ class Telemac(object):
         self.times[-1] = times_1
 
     ############################################################################
-    def morphological_acceleration_adaptive(self, morfac_max, db_max, q = .95):
+    def morphological_acceleration_adaptive(self, morfac_max, db_max, q = .95,
+                                            bmax = None):
         """Accelerate morphological changes with an adaptive factor.
 
         The changes in bottom surface elevation between two time steps of the
@@ -654,7 +705,9 @@ class Telemac(object):
             morfac_max (float): Maximum morphological acceleration factor.
             db_max (float): Maximum elevation change between two time steps.
             q (float, optional): Quantile over which the maximum elevation
-            change is calculated. Default to 0.95.
+                change is calculated. Default to 0.95.
+            bmax (float, optional): The bottom surface elevation is clipped
+                above this value. Default to None (no clipping).
 
         Todo:
             Update for more than one mud layer/class (e.g., different rho
@@ -683,10 +736,13 @@ class Telemac(object):
         morfac = np.minimum(db_max / db0_max, morfac_max)
 
         # Bottom surface elevation change after acceleration.
-        bi = bp + morfac * db0
+        b1 = bp + morfac * db0
 
         # Treat the rigid bed.
-        b1 = np.maximum(bi, r0)
+        b1 = np.maximum(b1, r0)
+
+        # Treat the maximum elevation.
+        b1 = np.minimum(b1, bmax)
 
         # Update other variables
         s1 = np.maximum(s0, b1)
@@ -695,6 +751,9 @@ class Telemac(object):
         t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
         m1 = (b1 - r0) * rho
         times_1 = times_p + (times_0 - times_p) * morfac
+        u1[s1 - b1 <= 1e-3] = 0
+        v1[s1 - b1 <= 1e-3] = 0
+        t1[s1 - b1 <= 1e-3] = 0
 
         # Update class attributes (including times).
         self.u[-1, :] = u1
