@@ -1,10 +1,8 @@
 import sys
-
 import numpy as np
-import scipy.sparse
-import scipy.sparse.linalg
-
 import ppmodules.selafin_io_pp as pps
+
+from demeter import diffusion
 
 ################################################################################
 class Telemac(object):
@@ -550,7 +548,7 @@ class Telemac(object):
 
         # Diffuse bottom surface.
         # Attention: t is time, not the Telemac variable for cohesive sediments.
-        bi = diffusion(x, y, b0, tri, nu, dt, t)
+        bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
 
         # Treat the rigid bed.
         b1 = np.maximum(bi, r0)
@@ -572,60 +570,6 @@ class Telemac(object):
         self.b[step, :] = b1
         self.t[0, step, :] = t1
         self.m[0, 0, step, :] = m1
-
-    ############################################################################
-    def diffuse_bottom_change(self, nu, dt, t = 1):
-        """Smooth the bottom surface elevation change by diffusion.
-
-        Args:
-            nu (float): Diffusion coefficient (m^2/s).
-            dt (float): Time step (s).
-            t (float, optional): Duration of diffusion (s). Default to 1 s.
-
-        Todo:
-            Update for more than one mud layer/class (e.g., different rho
-            values).
-
-        """
-        # Class attributes.
-        x = self.x
-        y = self.y
-        tri = self.ikle - 1
-        rho = self.rho
-        u0 = self.u[-1, :]
-        v0 = self.v[-1, :]
-        s0 = self.s[-1, :]
-        b0 = self.b[-1, :]
-        bp = self.b[-2, :]
-        r0 = self.r[-1, :]
-        t0 = self.t[0, -1, :]
-
-        # Bottom surface elevation change before diffusion.
-        db0 = b0 - bp
-
-        # Bottom surface elevation change after diffusion.
-        bi = bp + diffusion(x, y, db0, tri, nu, dt, t)
-
-        # Treat the rigid bed.
-        b1 = np.maximum(bi, r0)
-
-        # Update other variables
-        s1 = np.maximum(s0, b1)
-        u1 = u0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
-        v1 = v0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
-        t1 = t0 * (s0 - b0) / np.maximum(s1 - b1, 1e-3)
-        m1 = rho * (b1 - r0)
-        u1[s1 - b1 <= 1e-3] = 0
-        v1[s1 - b1 <= 1e-3] = 0
-        t1[s1 - b1 <= 1e-3] = 0
-
-        # Update class attributes (including times).
-        self.u[-1, :] = u1
-        self.v[-1, :] = v1
-        self.s[-1, :] = s1
-        self.b[-1, :] = b1
-        self.t[0, -1, :] = t1
-        self.m[0, 0, -1, :] = m1
 
     ############################################################################
     def morphological_acceleration(self, morfac, bmax = None):
@@ -765,134 +709,3 @@ class Telemac(object):
         self.times[-1] = times_1
 
         return morfac
-
-################################################################################
-def diffusion(x, y, f, tri, nu, dt, t = 1):
-    """ Diffusion operator.
-
-    Args:
-        x (NumPy array): Grid node x-coordinates.
-        y (NumPy array): Grid node y-coordinates.
-        f (NumPy array): Grid node field values.
-        tri (NumPy array): Triangle connectivity table.
-        nu (float): Diffusion coefficient (m^2/s).
-        dt (float): Time step (s)
-        t (float, optional): Duration of diffusion (s). Default to 1 s.
-
-    Todo:
-        MPI implementation.
-
-    """
-    # Number of grid nodes.
-    npoin = len(x)
-
-    # Number of triangles.
-    ntri = len(tri)
-
-    # Initialize Jacobian determinant matrix.
-    jac = np.zeros(ntri)
-
-    # Initialize matrix A.
-    a = scipy.sparse.lil_matrix((npoin, npoin))
-
-    # Initialize matrix b.
-    b = scipy.sparse.lil_matrix((npoin, npoin))
-
-    # Compute Jacobian determinant matrix.
-    for i in range(len(tri)):
-        # Local coordinates.
-        x0 = x[tri[i, 0]]
-        x1 = x[tri[i, 1]]
-        x2 = x[tri[i, 2]]
-        y0 = y[tri[i, 0]]
-        y1 = y[tri[i, 1]]
-        y2 = y[tri[i, 2]]
-        # Jacobian determinant.
-        jac[i] = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0)
-
-    # Feed matrix A.
-    for i in range(ntri):
-        # Local matrix.
-        a_loc = jac[i] / 24 * np.array([[2, 1, 1], [1, 2, 1], [1, 1, 2]])
-        # Global indices of local nodes.
-        i0 = tri[i, 0]
-        i1 = tri[i, 1]
-        i2 = tri[i, 2]
-        # Feed matrix A.
-        a[i0, i0] += a_loc[0, 0]
-        a[i0, i1] += a_loc[0, 1]
-        a[i0, i2] += a_loc[0, 2]
-        a[i1, i0] += a_loc[1, 0]
-        a[i1, i1] += a_loc[1, 1]
-        a[i1, i2] += a_loc[1, 2]
-        a[i2, i0] += a_loc[2, 0]
-        a[i2, i1] += a_loc[2, 1]
-        a[i2, i2] += a_loc[2, 2]
-
-    # Feed matrix b.
-    for i in range(ntri):
-        # Local coordinates.
-        x0 = x[tri[i, 0]]
-        x1 = x[tri[i, 1]]
-        x2 = x[tri[i, 2]]
-        y0 = y[tri[i, 0]]
-        y1 = y[tri[i, 1]]
-        y2 = y[tri[i, 2]]
-        # Shape function derivatives.
-        phi0x = (y1 - y2) / jac[i]
-        phi1x = (y2 - y0) / jac[i]
-        phi2x = (y0 - y1) / jac[i]
-        phi0y = (x2 - x1) / jac[i]
-        phi1y = (x0 - x2) / jac[i]
-        phi2y = (x1 - x0) / jac[i]
-        # Local matrix b.
-        b_loc = np.zeros((3, 3))
-        b_loc[0, 0] = -.5 * jac[i] * (phi0x * phi0x + phi0y * phi0y)
-        b_loc[0, 1] = -.5 * jac[i] * (phi0x * phi1x + phi0y * phi1y)
-        b_loc[0, 2] = -.5 * jac[i] * (phi0x * phi2x + phi0y * phi2y)
-        b_loc[1, 0] = -.5 * jac[i] * (phi1x * phi0x + phi1y * phi0y)
-        b_loc[1, 1] = -.5 * jac[i] * (phi1x * phi1x + phi1y * phi1y)
-        b_loc[1, 2] = -.5 * jac[i] * (phi1x * phi2x + phi1y * phi2y)
-        b_loc[2, 0] = -.5 * jac[i] * (phi2x * phi0x + phi2y * phi0y)
-        b_loc[2, 1] = -.5 * jac[i] * (phi2x * phi1x + phi2y * phi1y)
-        b_loc[2, 2] = -.5 * jac[i] * (phi2x * phi2x + phi2y * phi2y)
-        # Global indices of local nodes.
-        i0 = tri[i, 0]
-        i1 = tri[i, 1]
-        i2 = tri[i, 2]
-        # Feed matrix b.
-        b[i0, i0] += b_loc[0, 0]
-        b[i0, i1] += b_loc[0, 1]
-        b[i0, i2] += b_loc[0, 2]
-        b[i1, i0] += b_loc[1, 0]
-        b[i1, i1] += b_loc[1, 1]
-        b[i1, i2] += b_loc[1, 2]
-        b[i2, i0] += b_loc[2, 0]
-        b[i2, i1] += b_loc[2, 1]
-        b[i2, i2] += b_loc[2, 2]
-
-    # Convert to sparse matrices.
-    a = scipy.sparse.csr_matrix(a)
-    b = scipy.sparse.csr_matrix(b)
-
-    # Initialize diffused array.
-    f1 = f.copy()
-
-    # Initialize current time.
-    ti = 0
-
-    # Diffusion loop.
-    while ti < t - dt:
-        # For each time step, the array to diffuse is the diffused array from
-        # the previous time step.
-        f0 = f1.copy()
-        # Solve linear matrix equation.
-        f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * dt * b.dot(f0))
-        # Update current time.
-        ti += dt
-
-    # Finale time step (t - ti <= dt).
-    f0 = f1.copy()
-    f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * (t - ti) * b.dot(f0))
-
-    return f1
