@@ -3,7 +3,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 
 ################################################################################
-def diffusion(x, y, f, tri, nu, dt, t = 1):
+def diffusion(x, y, f, tri, nu, dt, t):
     """ Diffusion operator.
 
     Args:
@@ -11,9 +11,9 @@ def diffusion(x, y, f, tri, nu, dt, t = 1):
         y (NumPy array): Grid node y-coordinates.
         f (NumPy array): Grid node field values.
         tri (NumPy array): Triangle connectivity table.
-        nu (float): Diffusion coefficient (m^2/s).
-        dt (float): Time step (s)
-        t (float, optional): Duration of diffusion (s). Default to 1 s.
+        nu (float): Diffusion coefficient (m^2/yr).
+        dt (float): Time step (yr)
+        t (float): Duration of diffusion (yr).
 
     Todo:
         MPI implementation.

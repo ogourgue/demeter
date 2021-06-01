@@ -1,5 +1,8 @@
+import os
 import sys
+
 import numpy as np
+
 import ppmodules.selafin_io_pp as pps
 
 from demeter import diffusion
@@ -519,13 +522,15 @@ class Telemac(object):
                                axis = 2)
 
     ############################################################################
-    def diffuse_bottom(self, nu, dt, t = 1, step = -1):
+    def diffuse_bottom(self, nu, dt, t, nproc = 1, step = -1):
         """Smooth the bottom surface by diffusion.
 
         Args:
-            nu (float): Diffusion coefficient (m^2/s).
-            dt (float): Time step (s).
-            t (float, optional): Duration of diffusion (s). Default to 1 s.
+            nu (float): Diffusion coefficient (m^2/yr).
+            dt (float): Time step (yr).
+            t (float): Duration of diffusion (yr).
+            nproc (int, optional): Number of MPI processes. Default to 1 (no
+                MPI).
             step (int, optional): Telemac time step on which the diffusion is
                 applied. Default to -1 for last time step.
 
@@ -548,7 +553,46 @@ class Telemac(object):
 
         # Diffuse bottom surface.
         # Attention: t is time, not the Telemac variable for cohesive sediments.
-        bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
+        if nproc <= 1:
+
+            ################
+            # Serial mode. #
+            ################
+
+            # Call diffusion function.
+            bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
+
+        else:
+
+            #################
+            # Parallel mode #
+            #################
+
+            # Create directory to store intermediate input files.
+            if os.path.isdir('tmp_diffusion'):
+                shutil.rmtree('tmp_diffusion')
+            os.mkdir('tmp_diffusion')
+
+            # Intermediate input file names.
+            x_global_fn = 'tmp_diffusion/x_global.txt'
+            y_global_fn = 'tmp_diffusion/y_global.txt'
+            f_global_fn = 'tmp_diffusion/f_global.txt'
+            tri_global_fn = 'tmp_diffusion/tri_global.txt'
+
+            # Intermediate files.
+            np.savetxt(x_global_fn, x)
+            np.savetxt(y_global_fn, y)
+            np.savetxt(f_global_fn, b0)
+            np.savetxt(tri_global_fn, tri, fmt = '%d')
+
+            # Run diffusion module.
+
+            ####################################################################
+            # Todo: to replace by actual call to module ########################
+            ####################################################################
+            bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
+
+            ####################################################################
 
         # Treat the rigid bed.
         b1 = np.maximum(bi, r0)
