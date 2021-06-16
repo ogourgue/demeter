@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 
 import numpy as np
@@ -573,26 +574,24 @@ class Telemac(object):
                 shutil.rmtree('tmp_diffusion')
             os.mkdir('tmp_diffusion')
 
-            # Intermediate input file names.
+            # Intermediate file names.
             x_global_fn = 'tmp_diffusion/x_global.txt'
             y_global_fn = 'tmp_diffusion/y_global.txt'
             f_global_fn = 'tmp_diffusion/f_global.txt'
+            f1_global_fn = 'tmp_diffusion/f1_global.txt'
             tri_global_fn = 'tmp_diffusion/tri_global.txt'
 
-            # Intermediate files.
+            # Save intermediate files.
             np.savetxt(x_global_fn, x)
             np.savetxt(y_global_fn, y)
             np.savetxt(f_global_fn, b0)
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
             # Run diffusion module.
+            os.system('python $DEMPATH/diffusion.py %f %f %f' % (nu, dt, t))
 
-            ####################################################################
-            # Todo: to replace by actual call to module ########################
-            ####################################################################
-            bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
-
-            ####################################################################
+            # Load intermediate file.
+            bi = np.loadtxt(f1_global_fn)
 
         # Treat the rigid bed.
         b1 = np.maximum(bi, r0)
