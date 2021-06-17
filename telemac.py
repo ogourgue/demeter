@@ -6,8 +6,6 @@ import numpy as np
 
 import ppmodules.selafin_io_pp as pps
 
-from demeter import diffusion
-
 ################################################################################
 class Telemac(object):
     """Process Telemac output.
@@ -561,6 +559,7 @@ class Telemac(object):
             ################
 
             # Call diffusion function.
+            from demeter import diffusion
             bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
 
         else:
@@ -588,8 +587,8 @@ class Telemac(object):
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
             # Run parallel diffusion module.
-            os.system('mpiexec -n %d python ' % nproc +
-                      '$DEMPATH/diffusion_parallel.py %f %f %f' % (nu, dt, t))
+            os.system('mpiexec -n %d python $DEMPATH/diffusion.py %f %f %f' %
+                      (nproc, nu, dt, t))
 
             # Load intermediate file.
             bi = np.loadtxt(f1_global_fn)
