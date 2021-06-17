@@ -3,6 +3,7 @@
 Todo: Docstrings.
 
 """
+import os
 import sys
 
 import numpy as np
@@ -154,6 +155,7 @@ def diffusion(x, y, f, tri, nu, dt, t):
 ################################################################################
 if __name__ == '__main__':
 
+    # Mesh partitioning by domain decomposition.
     if rank == 0:
 
         # Intermediate file names.
@@ -162,6 +164,7 @@ if __name__ == '__main__':
         f_global_fn = './tmp_diffusion/f_global.txt'
         f1_global_fn = './tmp_diffusion/f1_global.txt'
         tri_global_fn = './tmp_diffusion/tri_global.txt'
+        metis_fn = './tmp_diffusion/metis.txt'
 
         # Load intermediate files.
         x = np.loadtxt(x_global_fn)
@@ -173,6 +176,70 @@ if __name__ == '__main__':
         nu = float(sys.argv[1])
         dt = float(sys.argv[2])
         t = float(sys.argv[3])
+
+        # Write mesh file for Metis.
+        # Metis requires that node indices start at 1 (not 0 as in Demeter).
+        tri1 = tri + 1
+        file = open(metis_fn, 'w')
+        file.write('%d\n' % tri.shape[0])
+        for i in range(tri.shape[0]):
+            file.write('%d %d %d\n' % (tri1[i, 0], tri1[i, 1], tri1[i, 2]))
+        file.close()
+
+        # Run Metis (domain decomposition).
+        os.system('mpmetis ' + metis_fn + ' %d' % nproc)
+
+        # Import node partitioning.
+        npart = np.loadtxt(metis_fn + '.npart.%d' % nproc, dtype = int)
+
+        ########################################################################
+        # Everything below must be adjusted.
+        # On each partition, we need the partition nodes and the ghost nodes.
+        # Globally: npart gives the partition, another array gives the partition
+        # on which the node is a ghost (-1 if it is not a ghost).
+        # Locally: x, y, f, tri on partition nodes (including ghost nodes), a
+        # list of local ghost indices, and tri_loc.
+        ########################################################################
+
+        # Split variables for each partition.
+        x_list = []
+        y_list = []
+        f_list = []
+        for i in range(nproc):
+            x_list.append(x[npart == i])
+            y_list.append(y[npart == i])
+            f_list.append(f[npart == i])
+
+        # Global to local indices. Entry i gives local partition index of global
+        # node i.
+        gloloc = np.zeros(x.shape, dtype = int)
+        ind = np.zeros(nproc, dtype = int) - 1
+        for i in range(x.shape[0]):
+            ind[npart[i]] += 1
+            gloloc[i] = ind[npart[i]]
+
+        # Split triangles for each partiton. A triangle belongs to a partition
+        # if at least one of its vertices belongs to that partition. Some
+        # triangles belong to several partitions.
+        tri_list = []
+
+        print(npart[:10])
+        print(tri[tri[:, 0] == 0, :])
+
+        for i in range(nproc):
+            # Connectivity table for partition i, with global node indices.
+            tri_glo = np.argwhere(np.sum(npart[tri] == i, axis = 1) > 0)
+            tri_glo = tri_glo.reshape(-1)
+            # Convert global to local indices.
+            tri_list.append(gloloc[tri[tri_glo, :]])
+
+        # Check partitioning with figures.
+        import matplotlib.pyplot as plt
+        for i in range(nproc):
+            plt.figure()
+            plt.plot(x_list[i], y_list[i], '.')
+            plt.savefig('test_%d.png' % i)
+            plt.close()
 
         # Diffusion.
         f1 = diffusion(x, y, f, tri, nu, dt, t)
