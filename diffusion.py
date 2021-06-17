@@ -8,6 +8,17 @@ import sys
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
+import mpi4py.MPI
+
+################################################################################
+# Base class of MPI communicators.
+comm = mpi4py.MPI.COMM_WORLD
+
+# Number of MPI processes.
+nproc = comm.Get_size()
+
+# Rank of mpi process.
+rank = comm.Get_rank()
 
 ################################################################################
 def diffusion(x, y, f, tri, nu, dt, t):
@@ -143,26 +154,28 @@ def diffusion(x, y, f, tri, nu, dt, t):
 ################################################################################
 if __name__ == '__main__':
 
-    # Intermediate file names.
-    x_global_fn = 'tmp_diffusion/x_global.txt'
-    y_global_fn = 'tmp_diffusion/y_global.txt'
-    f_global_fn = 'tmp_diffusion/f_global.txt'
-    f1_global_fn = 'tmp_diffusion/f1_global.txt'
-    tri_global_fn = 'tmp_diffusion/tri_global.txt'
+    if rank == 0:
 
-    # Load intermediate files.
-    x = np.loadtxt(x_global_fn)
-    y = np.loadtxt(y_global_fn)
-    f = np.loadtxt(f_global_fn)
-    tri = np.loadtxt(tri_global_fn, dtype = 'int')
+        # Intermediate file names.
+        x_global_fn = 'tmp_diffusion/x_global.txt'
+        y_global_fn = 'tmp_diffusion/y_global.txt'
+        f_global_fn = 'tmp_diffusion/f_global.txt'
+        f1_global_fn = 'tmp_diffusion/f1_global.txt'
+        tri_global_fn = 'tmp_diffusion/tri_global.txt'
 
-    # Other input data.
-    nu = float(sys.argv[1])
-    dt = float(sys.argv[2])
-    t = float(sys.argv[3])
+        # Load intermediate files.
+        x = np.loadtxt(x_global_fn)
+        y = np.loadtxt(y_global_fn)
+        f = np.loadtxt(f_global_fn)
+        tri = np.loadtxt(tri_global_fn, dtype = 'int')
 
-    # Diffusion.
-    f1 = diffusion(x, y, f, tri, nu, dt, t)
+        # Other input data.
+        nu = float(sys.argv[1])
+        dt = float(sys.argv[2])
+        t = float(sys.argv[3])
 
-    # Save intermediate file.
-    np.savetxt(f1_global_fn, f1)
+        # Diffusion.
+        f1 = diffusion(x, y, f, tri, nu, dt, t)
+
+        # Save intermediate file.
+        np.savetxt(f1_global_fn, f1)

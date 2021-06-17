@@ -588,10 +588,19 @@ class Telemac(object):
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
             # Run diffusion module.
-            os.system('python $DEMPATH/diffusion.py %f %f %f' % (nu, dt, t))
+            print('mpiexec -n %d python $DEMPATH/diffusion.py %f %f %f' % (nproc, nu, dt, t))
+            os.system('echo $DEMPATH')
+            os.system('mpiexec --version')
+            exit = os.system('mpiexec -n %d python $DEMPATH/diffusion.py %f %f %f' % (nproc, nu, dt, t))
+            if exit != 0:
+                print('Error with diffusion in parallel.')
+                sys.exit()
 
             # Load intermediate file.
             bi = np.loadtxt(f1_global_fn)
+
+            # Delete intermediate directory.
+            shutil.rmtree('tmp_diffusion')
 
         # Treat the rigid bed.
         b1 = np.maximum(bi, r0)
