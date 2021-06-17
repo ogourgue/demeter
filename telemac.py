@@ -570,16 +570,16 @@ class Telemac(object):
             #################
 
             # Create directory to store intermediate input files.
-            if os.path.isdir('tmp_diffusion'):
-                shutil.rmtree('tmp_diffusion')
-            os.mkdir('tmp_diffusion')
+            if os.path.isdir('./tmp_diffusion'):
+                shutil.rmtree('./tmp_diffusion')
+            os.mkdir('./tmp_diffusion')
 
             # Intermediate file names.
-            x_global_fn = 'tmp_diffusion/x_global.txt'
-            y_global_fn = 'tmp_diffusion/y_global.txt'
-            f_global_fn = 'tmp_diffusion/f_global.txt'
-            f1_global_fn = 'tmp_diffusion/f1_global.txt'
-            tri_global_fn = 'tmp_diffusion/tri_global.txt'
+            x_global_fn = './tmp_diffusion/x_global.txt'
+            y_global_fn = './tmp_diffusion/y_global.txt'
+            f_global_fn = './tmp_diffusion/f_global.txt'
+            f1_global_fn = './tmp_diffusion/f1_global.txt'
+            tri_global_fn = './tmp_diffusion/tri_global.txt'
 
             # Save intermediate files.
             np.savetxt(x_global_fn, x)
@@ -587,20 +587,15 @@ class Telemac(object):
             np.savetxt(f_global_fn, b0)
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
-            # Run diffusion module.
-            print('mpiexec -n %d python $DEMPATH/diffusion.py %f %f %f' % (nproc, nu, dt, t))
-            os.system('echo $DEMPATH')
-            os.system('mpiexec --version')
-            exit = os.system('mpiexec -n %d python $DEMPATH/diffusion.py %f %f %f' % (nproc, nu, dt, t))
-            if exit != 0:
-                print('Error with diffusion in parallel.')
-                sys.exit()
+            # Run parallel diffusion module.
+            os.system('mpiexec -n %d python ' % nproc +
+                      '$DEMPATH/diffusion_parallel.py %f %f %f' % (nu, dt, t))
 
             # Load intermediate file.
             bi = np.loadtxt(f1_global_fn)
 
             # Delete intermediate directory.
-            shutil.rmtree('tmp_diffusion')
+            shutil.rmtree('./tmp_diffusion')
 
         # Treat the rigid bed.
         b1 = np.maximum(bi, r0)
