@@ -22,7 +22,7 @@ nproc = comm.Get_size()
 rank = comm.Get_rank()
 
 ################################################################################
-def diffusion(x, y, f, tri, nu, dt, t):
+def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
     """ Diffusion operator.
 
     Args:
@@ -33,6 +33,8 @@ def diffusion(x, y, f, tri, nu, dt, t):
         nu (float): Diffusion coefficient (m^2/yr).
         dt (float): Time step (yr)
         t (float): Duration of diffusion (yr).
+        ghost (NumPy array, optional): Internal tool, only for parallel
+            computing. Default to None.
 
     Todo:
         MPI implementation.
@@ -145,6 +147,9 @@ def diffusion(x, y, f, tri, nu, dt, t):
         f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * dt * b.dot(f0))
         # Update current time.
         ti += dt
+        # Update values on ghost nodes in parallel mode.
+        if nproc > 1:
+            f1 = ghost_update(f1, ghost)
 
     # Finale time step (t - ti <= dt).
     f0 = f1.copy()
@@ -153,7 +158,45 @@ def diffusion(x, y, f, tri, nu, dt, t):
     return f1
 
 ################################################################################
+def ghost_update(f1, ghost):
+    """
+    Todo: Docstrings.
+
+    """
+    # Values to transfer.
+    f1_ghost_loc = f1[ghost[:, 0]]
+
+    # Secondary processes.
+    if rank > 0:
+
+        # Send partition data to primary processor.
+        npoin_ghost_loc = f1_ghost_loc.shape[0]
+        comm.send(npoin_ghost_loc, dest = i, tag = 200)
+        comm.Send([f1_ghost_loc, MPI.FLOAT], dest = 0, tag = 201)
+        comm.Send([ghost_loc[:, 1:], MPI.INT], dest = 0, tag = 202)
+
+    # Primary processor.
+    if rank == 0:
+
+        # Primary processor partition.
+        # To do ...
+
+
+
+
+
+
+
+    return f1
+
+
+################################################################################
 if __name__ == '__main__':
+
+    # Parameter input.
+    nu = float(sys.argv[1])
+    dt = float(sys.argv[2])
+    t = float(sys.argv[3])
 
     # Mesh partitioning by domain decomposition.
     if rank == 0:
@@ -172,11 +215,6 @@ if __name__ == '__main__':
         f = np.loadtxt(f_global_fn)
         tri = np.loadtxt(tri_global_fn, dtype = 'int')
 
-        # Other input data.
-        nu = float(sys.argv[1])
-        dt = float(sys.argv[2])
-        t = float(sys.argv[3])
-
         # Write mesh file for Metis.
         # Metis requires that node indices start at 1 (not 0 as in Demeter).
         tri1 = tri + 1
@@ -192,57 +230,162 @@ if __name__ == '__main__':
         # Import node partitioning.
         npart = np.loadtxt(metis_fn + '.npart.%d' % nproc, dtype = int)
 
-        ########################################################################
-        # Everything below must be adjusted.
-        # On each partition, we need the partition nodes and the ghost nodes.
-        # Globally: npart gives the partition, another array gives the partition
-        # on which the node is a ghost (-1 if it is not a ghost).
-        # Locally: x, y, f, tri on partition nodes (including ghost nodes), a
-        # list of local ghost indices, and tri_loc.
-        ########################################################################
+        # Global node indices for each partition (without ghost nodes).
+        glo_list = []
+        for i in range(nproc):
+            glo_list.append(np.argwhere(npart == i).reshape(-1))
 
-        # Split variables for each partition.
+        # Number of real nodes for each partition (without ghost nodes).
+        npoin_real_list = []
+        for i in range(nproc):
+            npoin_real_list.append(glo_list[i].shape[0])
+
+        # Connectivity table for each partition with global node indices.
+        # A triangle belongs to a partition if at least one of its vertices
+        # belongs to that partition. Some triangles belong to several
+        # partitions.
+        tri_glo_list = []
+        for i in range(nproc):
+            ind = np.argwhere(np.sum(npart[tri] == i, axis = 1) > 0).reshape(-1)
+            tri_glo_list.append(tri[ind, :])
+
+        # Update global node indices for each partition (including ghost nodes).
+        for i in range(nproc):
+            # Node indices in connectivity table.
+            ind_tri = np.unique(tri_glo_list[i])
+            # Ghost node indices.
+            ind_ghost = ind_tri[np.in1d(ind_tri, glo_list[i],
+                                        assume_unique = True, invert = True)]
+            # Add ghost nodes.
+            glo_list[i] = np.append(glo_list[i], ind_ghost)
+
+        # Number of ghost nodes for each partition.
+        npoin_ghost_list = []
+        for i in range(nproc):
+            npoin_ghost_list.append(glo_list[i].shape[0] - npoin_real_list[i])
+
+        # Ghost information for each partition. First column gives local node
+        # indices that are ghost nodes on other partitions. Second column gives
+        # the processor indices on which local nodes are ghost nodes (if a local
+        # node is a ghost on several processors, one row for each processor).
+        # Third column gives local node indices on ghost processors.
+        tmp = np.empty((nproc, nproc), dtype = object)
+        for i in range(nproc):
+            for j in range(nproc):
+                if i != j:
+                    res = np.intersect1d(glo_list[i][:npoin_real_list[i]],
+                                         glo_list[j][-npoin_ghost_list[j]:],
+                                         assume_unique = True,
+                                         return_indices = True)
+                    tmp[i, j] = np.zeros((res[0].shape[0], 3), dtype = int)
+                    # Local node indices that are ghost on other partitions.
+                    tmp[i, j][:, 0] = res[1]
+                    # Processor index on which local nodes are ghost nodes.
+                    tmp[i, j][:, 1] = j
+                    # Local node indices on ghost processors.
+                    tmp[i, j][:, 2] = res[2] + npoin_real_list[j]
+        # Merge temporary sub-arrays.
+        ghost_list = []
+        for i in range(nproc):
+            if i == 0:
+                ghost_list.append(tmp[i, 1])
+            else:
+                ghost_list.append(tmp[i, 0])
+            for j in range(1, nproc):
+                if i != j:
+                    ghost_list[i] = np.append(ghost_list[i], tmp[i, j],
+                                              axis = 0)
+
+        # Connectivity table for each partition with local node indices.
+        tri_list = []
+        for i in range(nproc):
+            tri_list.append(np.zeros(tri_glo_list[i].shape, dtype = int))
+            for j in range(tri_list[i].shape[0]):
+                for k in range(3):
+                    tri_list[i][j, k] = np.argwhere(glo_list[i] ==
+                                                    tri_glo_list[i][j, k])
+
+        # Coordinates and variable for each partition.
         x_list = []
         y_list = []
         f_list = []
         for i in range(nproc):
-            x_list.append(x[npart == i])
-            y_list.append(y[npart == i])
-            f_list.append(f[npart == i])
+            x_list.append(x[glo_list[i]])
+            y_list.append(y[glo_list[i]])
+            f_list.append(f[glo_list[i]])
 
-        # Global to local indices. Entry i gives local partition index of global
-        # node i.
-        gloloc = np.zeros(x.shape, dtype = int)
-        ind = np.zeros(nproc, dtype = int) - 1
-        for i in range(x.shape[0]):
-            ind[npart[i]] += 1
-            gloloc[i] = ind[npart[i]]
+    # Mesh partitioning for primary processor.
+    if rank == 0:
 
-        # Split triangles for each partiton. A triangle belongs to a partition
-        # if at least one of its vertices belongs to that partition. Some
-        # triangles belong to several partitions.
-        tri_list = []
+        # Primary processor partition.
+        x_loc = x_list[0]
+        y_loc = y_list[0]
+        f_loc = f_list[0]
+        tri_loc = tri_list[0]
+        ghost_loc = ghost_list[0]
 
-        print(npart[:10])
-        print(tri[tri[:, 0] == 0, :])
+        # Send partition data to secondary processors.
+        for i in range(1, nproc):
+            npoin_loc = x_list[i].shape[0]
+            nelem_loc = tri_list[i].shape[0]
+            npoin_ghost_loc = ghost_list[i].shape[0]
+            comm.send(npoin_loc, dest = i, tag = 100)
+            comm.send(nelem_loc, dest = i, tag = 101)
+            comm.send(npoin_ghost_loc, dest = i, tag = 102)
+            comm.Send([x_list[i], MPI.FLOAT], dest = i, tag = 103)
+            comm.Send([y_list[i], MPI.FLOAT], dest = i, tag = 104)
+            comm.Send([f_list[i], MPI.FLOAT], dest = i, tag = 105)
+            comm.Send([tri_list[i], MPI.INT], dest = i, tag = 106)
+            comm.Send([ghost_list[i], MPI.INT], dest = i, tag = 107)
 
+    # Mesh partitioning for secondary processors.
+    if rank > 0:
+
+        # Receive partition data from primary processor.
+        npoin_loc = comm.recv(source = 0, tag = 100)
+        nelem_loc = comm.recv(source = 0, tag = 101)
+        npoin_ghost_loc = comm.recv(source = 0, tag = 102)
+        x_loc = np.empty(npoin_loc, dtype = float)
+        y_loc = np.empty(npoin_loc, dtype = float)
+        f_loc = np.empty(npoin_loc, dtype = float)
+        tri_loc = np.empty((nelem_loc, 3), dtype = int)
+        ghost_loc = np.empty((npoin_ghost_loc, 3), dtype = int)
+        comm.Recv([x_loc, MPI.FLOAT], source = 0, tag = 103)
+        comm.Recv([y_loc, MPI.FLOAT], source = 0, tag = 104)
+        comm.Recv([f_loc, MPI.FLOAT], source = 0, tag = 105)
+        comm.Recv([tri_loc, MPI.INT], source = 0, tag = 106)
+        comm.Recv([ghost_loc, MPI.INT], source = 0, tag = 107)
+
+    # Diffusion.
+    f1_loc = diffusion(x_loc, y_loc, f_loc, tri_loc, nu, dt, t)
+
+    # Global mesh reconstruction for secondary processors.
+    if rank > 0:
+
+        # Send partition data to primary processor.
+        comm.Send([f1_loc, MPI.FLOAT], dest = 0, tag = 108)
+
+    # Global mesh reconstruction for primary processor.
+    if rank == 0:
+
+        # Primary processor partition.
+        f1_list = [f1_loc]
+
+        # Receive partition data from secondary processors.
+        for i in range(1, nproc):
+            npoin_loc = x_list[i].shape[0]
+            f1_list.append(np.empty(npoin_loc, dtype = float))
+            comm.Recv([f1_list[i], MPI.FLOAT], source = i, tag = 108)
+
+        # Remove data from ghost nodes.
         for i in range(nproc):
-            # Connectivity table for partition i, with global node indices.
-            tri_glo = np.argwhere(np.sum(npart[tri] == i, axis = 1) > 0)
-            tri_glo = tri_glo.reshape(-1)
-            # Convert global to local indices.
-            tri_list.append(gloloc[tri[tri_glo, :]])
+            f1_list[i] = f1_list[i][:npoin_real_list[i]]
 
-        # Check partitioning with figures.
-        import matplotlib.pyplot as plt
+        # Reconstruction.
+        npoin = x.shape[0]
+        f1 = np.zeros(npoin)
         for i in range(nproc):
-            plt.figure()
-            plt.plot(x_list[i], y_list[i], '.')
-            plt.savefig('test_%d.png' % i)
-            plt.close()
-
-        # Diffusion.
-        f1 = diffusion(x, y, f, tri, nu, dt, t)
+            f1[npart == i] = f1_list[i]
 
         # Save intermediate file.
         np.savetxt(f1_global_fn, f1)
