@@ -23,7 +23,10 @@ rank = comm.Get_rank()
 
 ################################################################################
 def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
-    """ Diffusion operator.
+    """ P1 finite element diffusion operator with mass lumping.
+
+    Mass lumping allows for easier implementation of the linear matrix equation
+    solver in parallel.
 
     Args:
         x (NumPy array): Grid node x-coordinates.
@@ -33,12 +36,8 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
         nu (float): Diffusion coefficient (m^2/yr).
         dt (float): Time step (yr)
         t (float): Duration of diffusion (yr).
-        ghost (NumPy array, optional): Internal tool, only for parallel
-            computing. Default to None.
-
-    Todo:
-        MPI implementation.
-
+        ghost (NumPy array, optional): Internal array for parallel computing.
+            Default to None.
     """
     # Number of grid nodes.
     npoin = len(x)
@@ -51,6 +50,9 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
 
     # Initialize matrix A.
     a = scipy.sparse.lil_matrix((npoin, npoin))
+
+    # Initialize lumped matrix A.
+    al = scipy.sparse.lil_matrix((npoin, npoin))
 
     # Initialize matrix b.
     b = scipy.sparse.lil_matrix((npoin, npoin))
@@ -85,6 +87,16 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
         a[i2, i0] += a_loc[2, 0]
         a[i2, i1] += a_loc[2, 1]
         a[i2, i2] += a_loc[2, 2]
+        # Feed lumped matrix A.
+        al[i0, i0] += a_loc[0, 0]
+        al[i0, i0] += a_loc[0, 1]
+        al[i0, i0] += a_loc[0, 2]
+        al[i1, i1] += a_loc[1, 0]
+        al[i1, i1] += a_loc[1, 1]
+        al[i1, i1] += a_loc[1, 2]
+        al[i2, i2] += a_loc[2, 0]
+        al[i2, i2] += a_loc[2, 1]
+        al[i2, i2] += a_loc[2, 2]
 
     # Feed matrix b.
     for i in range(ntri):
@@ -130,6 +142,7 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
 
     # Convert to sparse matrices.
     a = scipy.sparse.csr_matrix(a)
+    al = scipy.sparse.csr_matrix(al)
     b = scipy.sparse.csr_matrix(b)
 
     # Initialize diffused array.
@@ -144,7 +157,7 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
         # the previous time step.
         f0 = f1.copy()
         # Solve linear matrix equation.
-        f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * dt * b.dot(f0))
+        f1 = scipy.sparse.linalg.spsolve(al, a.dot(f0) + nu * dt * b.dot(f0))
         # Update current time.
         ti += dt
         # Update values on ghost nodes in parallel mode.
@@ -158,36 +171,94 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
     return f1
 
 ################################################################################
-def ghost_update(f1, ghost):
+def ghost_update(f1_loc, ghost_loc):
     """
     Todo: Docstrings.
 
     """
     # Values to transfer.
-    f1_ghost_loc = f1[ghost[:, 0]]
+    f1_ghost_loc = f1_loc[ghost_loc[:, 0]]
+    ghost_loc = np.ascontiguousarray(ghost_loc[:, 1:])
 
-    # Secondary processes.
+    # Secondary processors.
     if rank > 0:
 
         # Send partition data to primary processor.
         npoin_ghost_loc = f1_ghost_loc.shape[0]
-        comm.send(npoin_ghost_loc, dest = i, tag = 200)
+        comm.send(npoin_ghost_loc, dest = 0, tag = 200)
         comm.Send([f1_ghost_loc, MPI.FLOAT], dest = 0, tag = 201)
-        comm.Send([ghost_loc[:, 1:], MPI.INT], dest = 0, tag = 202)
+        comm.Send([ghost_loc, MPI.INT], dest = 0, tag = 202)
 
     # Primary processor.
     if rank == 0:
 
         # Primary processor partition.
-        # To do ...
+        f1_ghost_list = [f1_ghost_loc]
+        ghost_list = [ghost_loc]
 
+        # Receive partition from secondary processors.
+        for i in range(1, nproc):
+            npoin_ghost_loc = comm.recv(source = i, tag = 200)
+            f1_ghost_list.append(np.empty(npoin_ghost_loc, dtype = float))
+            ghost_list.append(np.empty((npoin_ghost_loc, 2), dtype = int))
+            comm.Recv([f1_ghost_list[i], MPI.FLOAT], source = i, tag = 201)
+            comm.Recv([ghost_list[i], MPI.INT], source = i, tag = 202)
 
+        # Prepare partition data to send back.
+        f1_ghost_tmp = np.empty((nproc, nproc), dtype = object)
+        ghost_tmp = np.empty((nproc, nproc), dtype = object)
+        for i in range(nproc):
+            for j in range(nproc):
+                if i != j:
+                    ind = np.argwhere(ghost_list[i][:, 0] == j).reshape(-1)
+                    if ind.shape[0] > 0:
+                        f1_ghost_tmp[i, j] = f1_ghost_list[i][ind]
+                        ghost_tmp[i, j] = ghost_list[i][:, 1][ind]
+        # Merge temporary sub-arrays.
+        f1_ghost_tmp_list = []
+        ghost_tmp_list = []
+        for i in range(nproc):
+            f1_ghost_tmp_list.append([])
+            ghost_tmp_list.append([])
+            for j in range(nproc):
+                if ghost_tmp[j, i] is not None:
+                    f1_ghost_tmp_list[i].append(f1_ghost_tmp[j, i])
+                    ghost_tmp_list[i].append(ghost_tmp[j, i])
+        f1_ghost_list = []
+        ghost_list = []
+        for i in range(nproc):
+            f1_ghost_list.append(f1_ghost_tmp_list[i][0])
+            ghost_list.append(ghost_tmp_list[i][0])
+            for j in range(1, len(ghost_tmp_list[i])):
+                f1_ghost_list[i] = np.append(f1_ghost_list[i],
+                                             f1_ghost_tmp_list[i][j])
+                ghost_list[i] = np.append(ghost_list[i], ghost_tmp_list[i][j])
 
+        # Primary processor partition.
+        f1_ghost_loc = f1_ghost_list[0]
+        ghost_loc = ghost_list[0]
 
+        # Send partition data to secondary processors.
+        for i in range(1, nproc):
+            npoin_ghost_loc = f1_ghost_list[i].shape[0]
+            comm.send(npoin_ghost_loc, dest = i, tag = 203)
+            comm.Send([f1_ghost_list[i], MPI.FLOAT], dest = i, tag = 204)
+            comm.Send([ghost_list[i], MPI.INT], dest = i, tag = 205)
 
+    # Secondary processors.
+    if rank > 0:
 
+        # Receive partition data from primary processor.
+        npoin_ghost_loc = comm.recv(source = 0, tag = 203)
+        f1_ghost_loc = np.empty(npoin_ghost_loc, dtype = float)
+        ghost_loc = np.empty(npoin_ghost_loc, dtype = int)
+        comm.Recv([f1_ghost_loc, MPI.FLOAT], source = 0, tag = 204)
+        comm.Recv([ghost_loc, MPI.INT], source = 0, tag = 205)
 
-    return f1
+    # Update values.
+    f1_loc[ghost_loc] = f1_ghost_loc
+
+    return f1_loc
 
 
 ################################################################################
@@ -285,16 +356,19 @@ if __name__ == '__main__':
                     # Local node indices on ghost processors.
                     tmp[i, j][:, 2] = res[2] + npoin_real_list[j]
         # Merge temporary sub-arrays.
+        tmp_list = []
+        for i in range(nproc):
+            tmp_list.append([])
+            for j in range(nproc):
+                if tmp[i, j] is not None:
+                    if tmp[i, j].shape[0] > 0:
+                        tmp_list[i].append(tmp[i, j])
         ghost_list = []
         for i in range(nproc):
-            if i == 0:
-                ghost_list.append(tmp[i, 1])
-            else:
-                ghost_list.append(tmp[i, 0])
-            for j in range(1, nproc):
-                if i != j:
-                    ghost_list[i] = np.append(ghost_list[i], tmp[i, j],
-                                              axis = 0)
+            ghost_list.append(tmp_list[i][0])
+            for j in range(1, len(tmp_list[i])):
+                ghost_list[i] = np.append(ghost_list[i], tmp_list[i][j],
+                                          axis = 0)
 
         # Connectivity table for each partition with local node indices.
         tri_list = []
@@ -357,7 +431,7 @@ if __name__ == '__main__':
         comm.Recv([ghost_loc, MPI.INT], source = 0, tag = 107)
 
     # Diffusion.
-    f1_loc = diffusion(x_loc, y_loc, f_loc, tri_loc, nu, dt, t)
+    f1_loc = diffusion(x_loc, y_loc, f_loc, tri_loc, nu, dt, t, ghost_loc)
 
     # Global mesh reconstruction for secondary processors.
     if rank > 0:
