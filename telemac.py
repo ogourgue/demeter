@@ -505,20 +505,30 @@ class Telemac(object):
         # Remove time step.
         times = times[:step] + times[step + 1:]
         if u is not None:
-            u = np.concatenate((u[:step, :], u[step+1:, :]), axis = 0)
+            u = np.concatenate((u[:step, :], u[step + 1:, :]), axis = 0)
         if v is not None:
-            v = np.concatenate((v[:step, :], v[step+1:, :]), axis = 0)
+            v = np.concatenate((v[:step, :], v[step + 1:, :]), axis = 0)
         if s is not None:
-            s = np.concatenate((s[:step, :], s[step+1:, :]), axis = 0)
+            s = np.concatenate((s[:step, :], s[step + 1:, :]), axis = 0)
         if b is not None:
-            b = np.concatenate((b[:step, :], b[step+1:, :]), axis = 0)
+            b = np.concatenate((b[:step, :], b[step + 1:, :]), axis = 0)
         if r is not None:
-            r = np.concatenate((r[:step, :], r[step+1:, :]), axis = 0)
+            r = np.concatenate((r[:step, :], r[step + 1:, :]), axis = 0)
         if t is not None:
-            t = np.concatenate((t[:, :step, :], t[:, step+1:, :]), axis = 1)
+            t = np.concatenate((t[:, :step, :], t[:, step + 1:, :]), axis = 1)
         if m is not None:
-            m = np.concatenate((m[:, :, :step, :], m[:, :, step+1:, :]),
+            m = np.concatenate((m[:, :, :step, :], m[:, :, step + 1:, :]),
                                axis = 2)
+
+        # Update class attributes.
+        self.times = times
+        self.u = u
+        self.v = v
+        self.s = s
+        self.b = b
+        self.r = r
+        self.t = t
+        self.m = m
 
     ############################################################################
     def diffuse_bottom(self, nu, dt, t, nproc = 1, step = -1):
@@ -536,6 +546,11 @@ class Telemac(object):
         Todo:
             Update for more than one mud layer/class (e.g., different rho
             values).
+
+        Bug:
+            Use of serial mode (nproc = 1) makes next Telemac run (whether in
+            serial or parallel mode) to crash (observed on the SCC at Boston
+            University, never tested elsewhere so far).
 
         """
         # Class attributes.
