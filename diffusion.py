@@ -11,7 +11,6 @@ import scipy.sparse
 import scipy.sparse.linalg
 from mpi4py import MPI
 
-################################################################################
 # Base class of MPI communicators.
 comm = MPI.COMM_WORLD
 
