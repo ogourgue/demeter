@@ -8,12 +8,11 @@ import ppmodules.selafin_io_pp as pps
 
 ################################################################################
 class Telemac(object):
-    """Process Telemac output.
+    """Process Telemac input/output.
 
-    Attributes:
+    Attributes: Todo.
 
     """
-
     def __init__(self, filename, vnames = None, step = None):
         """Import Telemac geometry/output file.
 
@@ -565,6 +564,40 @@ class Telemac(object):
         self.m = m
         self.th = th
         self.jc = jc
+
+    ############################################################################
+    def reset_variable(self, vname):
+        """Reset all values of a Telemac instance variable to 0.
+
+        Args:
+            vname (str): Name of the variable.
+
+        """
+        # Check if variable already exists.
+        if vname not in self.dem_vnames:
+            print('Error: ' + vname + ' is not a variable of the Telemac ' +
+                  'instance.')
+            sys.exit()
+
+        # Reset variable.
+        if vname == 'velocity u':
+            self.u = np.zeros(self.u.shape)
+        elif vname == 'velocity v':
+            self.v = np.zeros(self.v.shape)
+        elif vname == 'free surface':
+            self.s = np.zeros(self.s.shape)
+        elif vname == 'bottom':
+            self.b = np.zeros(self.b.shape)
+        elif vname == 'rigid bed':
+            self.r = np.zeros(self.r.shape)
+        elif vname == 'coh sediment':
+            self.t = np.zeros(self.t.shape)
+        elif vname == 'mass mud':
+            self.m = np.zeros(self.m.shape)
+        elif vname == 'hydroperiod':
+            self.th = np.zeros(self.th.shape)
+        elif vname == 'critical bottom shear impulse':
+            self.jc = np.zeros(self.jc.shape)
 
     ############################################################################
     def diffuse_bottom(self, nu, dt, t, nproc = 1, step = -1):
