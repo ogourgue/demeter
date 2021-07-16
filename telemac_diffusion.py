@@ -165,7 +165,7 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
 
     # Finale time step (t - ti <= dt).
     f0 = f1.copy()
-    f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * (t - ti) * b.dot(f0))
+    f1 = scipy.sparse.linalg.spsolve(al, a.dot(f0) + nu * (t - ti) * b.dot(f0))
 
     return f1
 
