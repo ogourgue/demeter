@@ -37,7 +37,7 @@ class CellularAutomaton(object):
         self.times = []
 
         # Cellular automaton state (empty).
-        self.state = np.zeros((0, nx, ny), dtype = np.int8)
+        self.state = np.zeros((0, nx, ny), dtype = int)
 
         # Probability of establishment.
         self.p_est = np.zeros((nx, ny))
@@ -76,7 +76,7 @@ class CellularAutomaton(object):
         # Import all time steps.
         if step is None:
             state = np.fromfile(file, dtype = np.int8, count = nt * nx * ny)
-            state = state.reshape((nt, nx, ny))
+            state = state.reshape((nt, nx, ny)).astype(int)
 
         # Import last time step.
         elif step == -1:
@@ -85,7 +85,7 @@ class CellularAutomaton(object):
             file.seek(nx * ny * (nt - 1), 1)
             # Read data.
             state = np.fromfile(file, dtype = np.int8, count = nx * ny)
-            state = state.reshape((1, nx, ny))
+            state = state.reshape((1, nx, ny)).astype(int)
 
         # Import specific time step.
         else:
@@ -94,7 +94,7 @@ class CellularAutomaton(object):
             file.seek(nx * ny * step, 1)
             # Read data.
             state = np.fromfile(file, dtype = np.int8, count = nx * ny)
-            state = state.reshape((1, nx, ny))
+            state = state.reshape((1, nx, ny)).astype(int)
 
         # Close file.
         file.close()
@@ -261,17 +261,20 @@ class CellularAutomaton(object):
             r_exp_global_fn = './tmp_cellular_automaton/r_exp_global.txt'
 
             # Save intermediate files.
-            np.savetxt(state_0_global_fn, state_0)
+            np.savetxt(state_0_global_fn, state_0, fmt = '%d')
             np.savetxt(p_est_global_fn, p_est)
             np.savetxt(p_die_global_fn, p_die)
             np.savetxt(r_exp_global_fn, r_exp)
 
+            # Generate random seed (required for reproducibility).
+            seed = np.random.randint(2 ** 32)
+
             # Run parallel Cellular Automaton run module.
             os.system('mpiexec -n %d python ' % nproc +
-                      '$DEMPATH/cellular_automaton_run.py %d' % nt)
+                      '$DEMPATH/cellular_automaton_run.py %d %d' % (nt, seed))
 
             # Load intermediate file.
-            state_1 = np.loadtxt(state_1_global_fn)
+            state_1 = np.loadtxt(state_1_global_fn, dtype = np.int8)
 
             # Delete intermediate directory.
             shutil.rmtree('./tmp_cellular_automaton')
