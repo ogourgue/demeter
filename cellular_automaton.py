@@ -1,3 +1,6 @@
+import os
+import shutil
+
 import numpy as np
 
 ################################################################################
@@ -9,7 +12,7 @@ class CellularAutomaton(object):
     """
 
     def __init__(self, x0, y0, nx, ny, dx):
-        """Create a Cellular Automaton instance from grid parameters.
+        """Create a cellular automaton instance from grid parameters.
 
         Args:
             x0 (float): x-coordinate of the center of the lower-left grid cell.
@@ -30,28 +33,147 @@ class CellularAutomaton(object):
         self.x = np.linspace(x0, x0 + (nx - 1) * dx, nx)
         self.y = np.linspace(y0, y0 + (ny - 1) * dx, ny)
 
+        # Time (empty).
+        self.times = []
+
         # Cellular automaton state (empty).
-        self.state = np.zeros((0, nx, ny))
+        self.state = np.zeros((0, nx, ny), dtype = np.int8)
 
         # Probability of establishment.
         self.p_est = np.zeros((nx, ny))
 
-        # Lateral expansion rate.
-        self.r_exp = np.zeros((nx, ny))
-
         # Probability of die-back.
         self.p_die = np.zeros((nx, ny))
 
+        # Lateral expansion rate.
+        self.r_exp = np.zeros((nx, ny))
+
     ############################################################################
     @classmethod
-    def from_file(cls, filename):
-        """Create a Cellular Automaton instance from an output file.
+    def from_file(cls, filename, step = None):
+        """Create a cellular automaton instance from an output file.
 
         Args:
             filename (str): Name of the output file to import.
+            step (int): Time step to import (-1 for last time step). Default to
+            None (all time steps are imported).
 
         """
-        # Todo.
+        # Open file.
+        file = open(filename, 'rb')
+
+        # Read header.
+        x0 = np.fromfile(file, dtype = float, count = 1)[0]
+        y0 = np.fromfile(file, dtype = float, count = 1)[0]
+        nx = np.fromfile(file, dtype = int, count = 1)[0]
+        ny = np.fromfile(file, dtype = int, count = 1)[0]
+        dx = np.fromfile(file, dtype = float, count = 1)[0]
+        nt = np.fromfile(file, dtype = int, count = 1)[0]
+
+        # Read times.
+        times = np.fromfile(file, dtype = float, count = nt)
+
+        # Import all time steps.
+        if step is None:
+            state = np.fromfile(file, dtype = np.int8, count = nt * nx * ny)
+            state = state.reshape((nt, nx, ny))
+
+        # Import last time step.
+        elif step == -1:
+            times = times[-1]
+            # Skip preceding time steps.
+            file.seek(nx * ny * (nt - 1), 1)
+            # Read data.
+            state = np.fromfile(file, dtype = np.int8, count = nx * ny)
+            state = state.reshape((1, nx, ny))
+
+        # Import specific time step.
+        else:
+            times = times[step]
+            # Skip preceding time steps.
+            file.seek(nx * ny * step, 1)
+            # Read data.
+            state = np.fromfile(file, dtype = np.int8, count = nx * ny)
+            state = state.reshape((1, nx, ny))
+
+        # Close file.
+        file.close()
+
+        # Grid coordinates.
+        x = np.linspace(x0, x0 + (nx - 1) * dx, nx)
+        y = np.linspace(y0, y0 + (ny - 1) * dx, ny)
+
+        # Probability of establishment.
+        p_est = np.zeros((nx, ny))
+
+        # Probability of die-back.
+        p_die = np.zeros((nx, ny))
+
+        # Lateral expansion rate.
+        r_exp = np.zeros((nx, ny))
+
+        # Class attributes.
+        cls.x0 = x0
+        cls.y0 = y0
+        cls.nx = nx
+        cls.ny = ny
+        cls.dx = dx
+        cls.times = times
+        cls.state = state
+        cls.x = x
+        cls.y = y
+        cls.p_est = p_est
+        cls.p_die = p_die
+        cls.r_exp = r_exp
+
+        return cls
+
+    ############################################################################
+    def export(self, filename, step = None):
+        """Export cellular automaton output file.
+
+        Args:
+            filename (str): Name of the file to export.
+            step (int, optional): Time step to export (-1 for last time step).
+                Default to None (all time steps are imported).
+
+        """
+        # Lists of time steps.
+        if step is None:
+            steps = list(range(len(self.times)))
+        else:
+            steps = [step]
+
+        # Open file.
+        file = open(filename, 'w')
+
+        # Export header.
+        np.array(self.x0, dtype = float).tofile(file)
+        np.array(self.y0, dtype = float).tofile(file)
+        np.array(self.nx, dtype = int).tofile(file)
+        np.array(self.ny, dtype = int).tofile(file)
+        np.array(self.dx, dtype = float).tofile(file)
+        np.array(len(self.times), dtype = int).tofile(file)
+
+        # Export time.
+        np.array(self.times, dtype = float).tofile(file)
+
+        # Export data per time step.
+        for step in steps:
+            np.array(self.state[step, :, :], dtype = np.int8).tofile(file)
+
+        # Close file.
+        file.close()
+
+    ############################################################################
+    def append_times(self, time):
+        """Append a time step to the cellular automaton instance.
+
+        Args:
+            time (float): Time step to append.
+
+        """
+        self.times.append(time)
 
     ############################################################################
     def append_state(self, state):
@@ -61,8 +183,11 @@ class CellularAutomaton(object):
             state (NumPy array): Cellular automaton state to append.
 
         """
-        # Append state.
+        # Reshape and retype array to append.
         state = state.reshape((1, self.nx, self.ny))
+        state = state.astype(np.int8)
+
+        # Append state.
         self.state = np.append(self.state, state, axis = 0)
 
     ############################################################################
@@ -88,7 +213,7 @@ class CellularAutomaton(object):
         self.p_die = p_die
         self.r_exp = r_exp
 
-    ######################
+    ############################################################################
     def run(self, nt, nproc = 1):
         """Run cellular automaton and update state.
 
@@ -98,7 +223,8 @@ class CellularAutomaton(object):
 
         """
         # Class attributes.
-        s0 = self.state[-1, :, :]
+        dx = self.dx
+        state_0 = self.state[-1, :, :]
         p_est = self.p_est
         p_die = self.p_die
         r_exp = self.r_exp
@@ -114,7 +240,7 @@ class CellularAutomaton(object):
 
             # Call run_ca function.
             from demeter import cellular_automaton_run as ca_run
-            s1 = ca_run.run(s0, p_est, p_die, r_exp, nt)
+            state_1 = ca_run.run(state_0, p_est, p_die, r_exp, nt)
 
         else:
 
@@ -122,12 +248,56 @@ class CellularAutomaton(object):
             # Parallel mode #
             #################
 
-            print('Todo.')
+            # Create directory to store intermediate input files.
+            if os.path.isdir('./tmp_cellular_automaton'):
+                shutil.rmtree('./tmp_cellular_automaton')
+            os.mkdir('./tmp_cellular_automaton')
+
+            # Intermediate file names.
+            state_0_global_fn = './tmp_cellular_automaton/state_0_global.txt'
+            state_1_global_fn = './tmp_cellular_automaton/state_1_global.txt'
+            p_est_global_fn = './tmp_cellular_automaton/p_est_global.txt'
+            p_die_global_fn = './tmp_cellular_automaton/p_die_global.txt'
+            r_exp_global_fn = './tmp_cellular_automaton/r_exp_global.txt'
+
+            # Save intermediate files.
+            np.savetxt(state_0_global_fn, state_0)
+            np.savetxt(p_est_global_fn, p_est)
+            np.savetxt(p_die_global_fn, p_die)
+            np.savetxt(r_exp_global_fn, r_exp)
+
+            # Run parallel Cellular Automaton run module.
+            os.system('mpiexec -n %d python ' % nproc +
+                      '$DEMPATH/cellular_automaton_run.py %d' % nt)
+
+            # Load intermediate file.
+            state_1 = np.loadtxt(state_1_global_fn)
+
+            # Delete intermediate directory.
+            shutil.rmtree('./tmp_cellular_automaton')
 
         # Append new cellular automaton state.
-        self.append_state(s1)
+        self.append_state(state_1)
 
+    ############################################################################
+    def remove_time_step(self, step = 0):
+        """Remove one time step from state and times.
 
+        Args:
+            step (int, optional): Time step index to remove. Default to 0.
+
+        """
+        # Class attributes.
+        times = self.times
+        state = self.state
+
+        # Remove time step.
+        times = times[:step] + times[step + 1:]
+        state = np.concatenate((state[:step, :], state[step + 1:, :]), axis = 0)
+
+        # Update class attributes.
+        self.times = times
+        self.state = state
 
 ################################################################################
 def number_iterations(r_exp, dx, n = 2):
@@ -163,9 +333,3 @@ def number_iterations(r_exp, dx, n = 2):
         r_max = nt * dx
 
     return nt
-
-
-
-
-
-

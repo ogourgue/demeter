@@ -45,15 +45,15 @@ class Telemac(object):
 
         # Initialize variable attributes (only Telemac variables used in
         # Demeter, the list will be updated depending on needs).
-        self.u = None   # Velocity u
-        self.v = None   # Velocity v
-        self.s = None   # Free surface
-        self.b = None   # Bottom
-        self.t = None   # Suspended mud concentration
-        self.r = None   # Rigid bed
-        self.m = None   # Bottom mud mass
-        self.th = None  # Hydroperiod
-        self.jc = None  # Critical bottom shear impulse
+        self.u = None # Velocity u
+        self.v = None # Velocity v
+        self.s = None # Free surface
+        self.b = None # Bottom
+        self.t = None # Suspended mud concentration
+        self.r = None # Rigid bed
+        self.m = None # Bottom mud mass
+        self.th = None # Hydroperiod
+        self.jb = None # Exceeding bottom shear impulse
 
         # Initialize parameter attributes
         self.rho = None
@@ -189,9 +189,9 @@ class Telemac(object):
             if tel_vname.lower().strip() == 'hydroperiod':
                 self.th = data[:, self.tel_vnames.index(tel_vname), :]
                 self.dem_vnames.append('hydroperiod')
-            if tel_vname.lower().strip() == 'cbs impulse':
-                self.jc = data[:, self.tel_vnames.index(tel_vname), :]
-                self.dem_vnames.append('critical bottom shear impulse')
+            if tel_vname.lower().strip() == 'ebs impulse':
+                self.jb = data[:, self.tel_vnames.index(tel_vname), :]
+                self.dem_vnames.append('exceeding bottom shear impulse')
 
         # Determine the number of mud classes and layers.
         nc = 0
@@ -286,8 +286,8 @@ class Telemac(object):
             elif dem_vname == 'hydroperiod':
                 tel_vnames.append('HYDROPERIOD'.ljust(16))
                 tel_vunits.append('S'.ljust(16))
-            elif dem_vname == 'critical bottom shear impulse':
-                tel_vnames.append('CBS IMPULSE'.ljust(16))
+            elif dem_vname == 'exceeding bottom shear impulse':
+                tel_vnames.append('EBS IMPULSE'.ljust(16))
                 tel_vunits.append('N/M2 S'.ljust(16))
 
         # Open file.
@@ -337,8 +337,8 @@ class Telemac(object):
                 elif dem_vname == 'hydroperiod':
                     data[vid, :] = self.th[step, :]
                     vid += 1
-                elif dem_vname == 'critical bottom shear impulse':
-                    data[vid, :] = self.jc[step, :]
+                elif dem_vname == 'exceeding bottom shear impulse':
+                    data[vid, :] = self.jb[step, :]
                     vid += 1
             # Export data.
             slf.writeVariables(self.times[step], data)
@@ -441,8 +441,8 @@ class Telemac(object):
             self.m = v
         elif vname == 'hydroperiod':
             self.th = v
-        elif vname == 'critical bottom shear impulse':
-            self.jc = v
+        elif vname == 'exceeding bottom shear impulse':
+            self.jb = v
         else:
             print('Error: ' + vname + ' is not implemented in the Telemac ' +
                   'class of Demeter')
@@ -508,8 +508,8 @@ class Telemac(object):
             self.m = np.append(self.m, v, axis = 2)
         elif vname == 'hydroperiod':
             self.th = np.append(self.th, v, axis = 0)
-        elif vname == 'critical bottom shear impulse':
-            self.jc = np.append(self.jc, v, axis = 0)
+        elif vname == 'exceeding bottom shear impulse':
+            self.jb = np.append(self.jb, v, axis = 0)
 
     ############################################################################
     def remove_time_step(self, step = 0):
@@ -529,7 +529,7 @@ class Telemac(object):
         t = self.t
         m = self.m
         th = self.th
-        jc = self.jc
+        jb = self.jb
 
         # Remove time step.
         times = times[:step] + times[step + 1:]
@@ -550,8 +550,8 @@ class Telemac(object):
                                axis = 2)
         if th is not None:
             th = np.concatenate((th[:step, :], th[step + 1:, :]), axis = 0)
-        if jc is not None:
-            jc = np.concatenate((jc[:step, :], jc[step + 1:, :]), axis = 0)
+        if jb is not None:
+            jb = np.concatenate((jb[:step, :], jb[step + 1:, :]), axis = 0)
 
         # Update class attributes.
         self.times = times
@@ -563,7 +563,7 @@ class Telemac(object):
         self.t = t
         self.m = m
         self.th = th
-        self.jc = jc
+        self.jb = jb
 
     ############################################################################
     def reset_variable(self, vname):
@@ -596,8 +596,8 @@ class Telemac(object):
             self.m = np.zeros(self.m.shape)
         elif vname == 'hydroperiod':
             self.th = np.zeros(self.th.shape)
-        elif vname == 'critical bottom shear impulse':
-            self.jc = np.zeros(self.jc.shape)
+        elif vname == 'exceeding bottom shear impulse':
+            self.jb = np.zeros(self.jb.shape)
 
     ############################################################################
     def diffuse_bottom(self, nu, dt, t, nproc = 1, step = -1):
