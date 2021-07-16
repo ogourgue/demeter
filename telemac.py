@@ -38,6 +38,7 @@ class Telemac(object):
         self.npoin = None
         self.ndp = None
         self.ikle = None
+        self.tri = None
         self.ipobo = None
         self.x = None
         self.y = None
@@ -91,6 +92,7 @@ class Telemac(object):
         self.npoin = npoin
         self.ndp = ndp
         self.ikle = ikle
+        self.tri = ikle - 1
         self.ipobo = ipobo
         self.x = x
         self.y = y
@@ -625,7 +627,7 @@ class Telemac(object):
         # Class attributes.
         x = self.x
         y = self.y
-        tri = self.ikle - 1
+        tri = self.tri
         rho = self.rho
         u0 = self.u[step, :]
         v0 = self.v[step, :]
@@ -644,7 +646,7 @@ class Telemac(object):
 
             # Call diffusion function.
             from demeter import telemac_diffusion
-            bi = diffusion.diffusion(x, y, b0, tri, nu, dt, t)
+            bi = telemac_diffusion.diffusion(x, y, b0, tri, nu, dt, t)
 
         else:
 
