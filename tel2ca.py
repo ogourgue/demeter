@@ -28,7 +28,7 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1):
         # Serial mode. #
         ################
 
-        # Call run_ca function.
+        # Call interpolation function.
         from demeter import tel2ca_interpolation
         F = tel2ca_interpolation.interpolation(x, y, f, tri, X, Y)
 

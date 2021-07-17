@@ -87,11 +87,6 @@ def interpolation(x, y, f, tri, X, Y):
 ################################################################################
 if __name__ == '__main__':
 
-    # Split domains as CA.
-    # Takes all triangles with at least one vertex inside sub-domain.
-    # Apply interpolation on sub-domains.
-    # Done.
-
     # Mesh partitioning by domain decomposition.
     if rank == 0:
 
