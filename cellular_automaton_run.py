@@ -41,11 +41,6 @@ def run(state, p_est, p_die, r_exp, nt, mpi_nx = 1, mpi_ny = 1):
     p_die = 1 - (1 - p_die) ** (1 / nt)
     p_exp = r_exp / nt
 
-    # Note: in Demeter 1.0, we were doing two separate loops for (i)
-    # establishment and expansion, and (ii) for die-back. This required to limit
-    # establishment and expansion by potential die-back. We integrate all
-    # processes in one loop here, but it needs to be tested.
-
     # Loop over iterations.
     for i in range(nt):
         # Number of neighbors.
