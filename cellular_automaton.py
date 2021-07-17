@@ -183,9 +183,8 @@ class CellularAutomaton(object):
             state (NumPy array): Cellular automaton state to append.
 
         """
-        # Reshape and retype array to append.
+        # Reshape array to append.
         state = state.reshape((1, self.nx, self.ny))
-        state = state.astype(np.int8)
 
         # Append state.
         self.state = np.append(self.state, state, axis = 0)
@@ -274,7 +273,7 @@ class CellularAutomaton(object):
                       '$DEMPATH/cellular_automaton_run.py %d %d' % (nt, seed))
 
             # Load intermediate file.
-            state_1 = np.loadtxt(state_1_global_fn, dtype = np.int8)
+            state_1 = np.loadtxt(state_1_global_fn)
 
             # Delete intermediate directory.
             shutil.rmtree('./tmp_cellular_automaton')
