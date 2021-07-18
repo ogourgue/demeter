@@ -181,15 +181,18 @@ def update_state(i, j, state, p):
     # Indices where cellular automaton state is i.
     ind = (state == i)
 
-    # Generate random numbers for cells where cellular automaton state is i.
-    test = np.array(np.random.rand(np.sum(ind)))
+    # Update state only if there are cells to update.
+    if np.sum(ind) > 0:
 
-    # Test probabilities where cellular automaton state is i.
-    tmp = state[ind].copy()
-    tmp[p[ind] > test] = j
+        # Generate random numbers for cells where cellular automaton state is i.
+        test = np.array(np.random.rand(np.sum(ind)))
 
-    # Update cellular automaton state.
-    state[ind] = tmp
+        # Test probabilities where cellular automaton state is i.
+        tmp = state[ind].copy()
+        tmp[p[ind] > test] = j
+
+        # Update cellular automaton state.
+        state[ind] = tmp
 
     return state
 
