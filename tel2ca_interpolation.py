@@ -110,6 +110,17 @@ if __name__ == '__main__':
         # Cellular Automaton grid size.
         DX = X[1] - X[0]
 
+        # Maximum triangle surface area (smax) and corresponding characteristic
+        # length (lmax).
+        x0 = x[tri[:, 0]]
+        x1 = x[tri[:, 1]]
+        x2 = x[tri[:, 2]]
+        y0 = y[tri[:, 0]]
+        y1 = y[tri[:, 1]]
+        y2 = y[tri[:, 2]]
+        smax = np.max(.5 * (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1)))
+        lmax = np.sqrt(2 * smax)
+
         # Domain decomposition (Cellular Automaton grid). Convert X, Y to 2D
         # arrays before splitting, then convert split arrays to contiguous
         # (required for MPI communication) 1D arrays.
@@ -129,11 +140,13 @@ if __name__ == '__main__':
         f_list = []
         tri_list = []
         for i in range(nproc):
-            # Cellular Automaton sub-domain bounding box.
-            X0 = X_list[i][0] - DX
-            X1 = X_list[i][-1] + DX
-            Y0 = Y_list[i][0] - DX
-            Y1 = Y_list[i][-1] + DX
+            # Cellular Automaton sub-domain bounding box. Extend by lmax to
+            # include triangles at sub-domain corners that crosses the
+            # sub-domain, but with no vertex inside.
+            X0 = X_list[i][0] - .5 * DX - lmax
+            X1 = X_list[i][-1] + .5 * DX + lmax
+            Y0 = Y_list[i][0] - .5 * DX - lmax
+            Y1 = Y_list[i][-1] + .5 * DX + lmax
             # Global indices of nodes inside the Cellular Automaton sub-domain.
             nod_glo = np.argwhere((x >= X0) * (x <= X1) * (y >= Y0) * (y <= Y1))
             nod_glo = nod_glo.reshape(-1)
