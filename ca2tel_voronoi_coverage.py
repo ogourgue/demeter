@@ -36,7 +36,10 @@ def voronoi_coverage(X, Y, STATE, x, y, tri):
     # Coverage.
     cov = np.zeros(x.shape)
     for i in range(x.shape[0]):
-        cov[i] = np.mean(STATE[vor == i])
+        if np.sum(vor == i) == 0:
+            cov[i] = np.nan
+        else:
+            cov[i] = np.mean(STATE[vor == i])
 
     return cov
 
@@ -116,49 +119,51 @@ def voronoi(X, Y, x, y, tri):
     return vor
 
 ################################################################################
-"""if __name__ == '__main__':
+if __name__ == '__main__':
 
     # Mesh partitioning by domain decomposition.
     if rank == 0:
 
         # Intermediate file names.
-        x_global_fn = './tmp_tel2ca/x_global.txt'
-        y_global_fn = './tmp_tel2ca/y_global.txt'
-        f_global_fn = './tmp_tel2ca/f_global.txt'
-        tri_global_fn = './tmp_tel2ca/tri_global.txt'
-        X_global_fn = './tmp_tel2ca/X_global.txt'
-        Y_global_fn = './tmp_tel2ca/Y_global.txt'
-        F_global_fn = './tmp_tel2ca/F_global.txt'
+        X_global_fn = './tmp_ca2tel/X_global.txt'
+        Y_global_fn = './tmp_ca2tel/Y_global.txt'
+        STATE_global_fn = './tmp_ca2tel/STATE_global.txt'
+        x_global_fn = './tmp_ca2tel/x_global.txt'
+        y_global_fn = './tmp_ca2tel/y_global.txt'
+        tri_global_fn = './tmp_ca2tel/tri_global.txt'
+        cov_global_fn = './tmp_ca2tel/cov_global.txt'
 
         # Load intermediate files.
-        x = np.loadtxt(x_global_fn)
-        y = np.loadtxt(y_global_fn)
-        f = np.loadtxt(f_global_fn)
-        tri = np.loadtxt(tri_global_fn, dtype = int)
         X = np.loadtxt(X_global_fn)
         Y = np.loadtxt(Y_global_fn)
+        STATE = np.loadtxt(STATE_global_fn, dtype = int)
+        x = np.loadtxt(x_global_fn)
+        y = np.loadtxt(y_global_fn)
+        tri = np.loadtxt(tri_global_fn, dtype = int)
 
         # Cellular Automaton grid size.
         DX = X[1] - X[0]
 
         # Domain decomposition (Cellular Automaton grid). Convert X, Y to 2D
-        # arrays before splitting, then convert split arrays to contiguous
-        # (required for MPI communication) 1D arrays.
+        # arrays before splitting, then convert all arrays back to 1D.
         X, Y = np.meshgrid(X, Y, indexing = 'ij')
         nx, ny = X.shape
         mpi_nx, mpi_ny = ca_mpi.get_domain_decomposition(nx, ny, nproc)
         X_list = ca_mpi.mpi_split_array(X, mpi_nx, mpi_ny)
         Y_list = ca_mpi.mpi_split_array(Y, mpi_nx, mpi_ny)
         for i in range(nproc):
-            X_list[i] = np.ascontiguousarray(X_list[i][:, 0])
-            Y_list[i] = np.ascontiguousarray(Y_list[i][0, :])
+            X_list[i] = X_list[i][:, 0]
+            Y_list[i] = Y_list[i][0, :]
+        X = X[:, 0]
+        Y = Y[0, :]
 
         # Domain decomposition (Telemac grid). Take all triangles with at least
         # one vertex inside the Cellular Automaton sub-domain.
         x_list = []
         y_list = []
-        f_list = []
         tri_list = []
+        glo2loc = [] # Global to local node index conversion.
+        ext2loc = [] # Local extended to original local node index conversion.
         for i in range(nproc):
             # Cellular Automaton sub-domain bounding box.
             X0 = X_list[i][0] - DX
@@ -166,8 +171,9 @@ def voronoi(X, Y, x, y, tri):
             Y0 = Y_list[i][0] - DX
             Y1 = Y_list[i][-1] + DX
             # Global indices of nodes inside the Cellular Automaton sub-domain.
-            nod_glo = np.argwhere((x >= X0) * (x <= X1) * (y >= Y0) * (y <= Y1))
-            nod_glo = nod_glo.reshape(-1)
+            nod_glo = np.argwhere((x >= X0) * (x <= X1) *
+                                  (y >= Y0) * (y <= Y1)).reshape(-1)
+            glo2loc.append(nod_glo)
             # Global indices of triangles with at least one vertex inside the
             # Cellular Automaton sub-domain.
             tmp = np.zeros(tri.shape[0], dtype = bool)
@@ -177,91 +183,122 @@ def voronoi(X, Y, x, y, tri):
             # Local nodes with global indices (including some outside the
             # Cellular Automaton sub-domain but that are vertices of triangles
             # partly inside).
-            nod_glo = np.unique(tri_glo)
-            # Local node coordinates and field values.
-            x_list.append(x[nod_glo])
-            y_list.append(y[nod_glo])
-            f_list.append(f[nod_glo])
+            nod_glo_extended = np.unique(tri_glo)
+            ext2loc.append(np.intersect1d(nod_glo, nod_glo_extended,
+                                          return_indices = True)[2])
+            # Local node coordinates.
+            x_list.append(x[nod_glo_extended])
+            y_list.append(y[nod_glo_extended])
             # Local connectivity table with local indices.
             tri_loc = np.zeros(tri_glo.shape, dtype = int)
             for j in range(tri_loc.shape[0]):
                 for k in range(tri_loc.shape[1]):
-                    tri_loc[j, k] = int(np.argwhere(tri_glo[j, k] == nod_glo))
+                    tri_loc[j, k] = int(np.argwhere(tri_glo[j, k] ==
+                                                    nod_glo_extended))
             tri_list.append(tri_loc)
+
+        # Extended domain decomposition (Cellular automaton grid). Cover all
+        # local Telemac grid nodes (including some outside the original
+        # Cellular Automaton sub-domain but that are vertices of triangles
+        # partly inside).
+        X_list = []
+        Y_list = []
+        STATE_list = []
+        for i in range(nproc):
+            # Bounding box coordinates.
+            xmin = np.min(x_list[i])
+            xmax = np.max(x_list[i])
+            ymin = np.min(y_list[i])
+            ymax = np.max(y_list[i])
+            # Bounding box indices.
+            try:imin = int(np.argwhere(X <= xmin)[-1])
+            except:imin = 0
+            try:imax = int(np.argwhere(X >= xmax)[0])
+            except:imax = len(X) - 1
+            try:jmin = int(np.argwhere(Y <= ymin)[-1])
+            except:jmin = 0
+            try:jmax = int(np.argwhere(Y >= ymax)[0])
+            except:jmax = len(Y) - 1
+            # Extended Cellular Automaton coordinates and state.
+            X_list.append(np.ascontiguousarray(X[imin:imax + 1]))
+            Y_list.append(np.ascontiguousarray(Y[jmin:jmax + 1]))
+            STATE_list.append(np.ascontiguousarray(STATE[imin:imax + 1,
+                                                         jmin:jmax + 1]))
 
     # Mesh partitioning for primary processor.
     if rank == 0:
 
         # Primary processor partition.
-        x_loc = x_list[0]
-        y_loc = y_list[0]
-        f_loc = f_list[0]
-        tri_loc = tri_list[0]
         X_loc = X_list[0]
         Y_loc = Y_list[0]
+        STATE_loc = STATE_list[0]
+        x_loc = x_list[0]
+        y_loc = y_list[0]
+        tri_loc = tri_list[0]
 
         # Send partition data to secondary processors.
         for i in range(1, nproc):
-            npoin_loc = x_list[i].shape[0]
-            nelem_loc = tri_list[i].shape[0]
             nx_loc = X_list[i].shape[0]
             ny_loc = Y_list[i].shape[0]
-            comm.send(npoin_loc, dest = i, tag = 500)
-            comm.send(nelem_loc, dest = i, tag = 501)
-            comm.send(nx_loc, dest = i, tag = 502)
-            comm.send(ny_loc, dest = i, tag = 503)
-            comm.Send([x_list[i], MPI.FLOAT], dest = i, tag = 504)
-            comm.Send([y_list[i], MPI.FLOAT], dest = i, tag = 505)
-            comm.Send([f_list[i], MPI.FLOAT], dest = i, tag = 506)
-            comm.Send([tri_list[i], MPI.INT], dest = i, tag = 507)
-            comm.Send([X_list[i], MPI.FLOAT], dest = i, tag = 508)
-            comm.Send([Y_list[i], MPI.FLOAT], dest = i, tag = 509)
+            npoin_loc = x_list[i].shape[0]
+            nelem_loc = tri_list[i].shape[0]
+            comm.send(nx_loc, dest = i, tag = 600)
+            comm.send(ny_loc, dest = i, tag = 601)
+            comm.send(npoin_loc, dest = i, tag = 602)
+            comm.send(nelem_loc, dest = i, tag = 603)
+            comm.Send([X_list[i], MPI.FLOAT], dest = i, tag = 604)
+            comm.Send([Y_list[i], MPI.FLOAT], dest = i, tag = 605)
+            comm.Send([STATE_list[i], MPI.INT], dest = i, tag = 606)
+            comm.Send([x_list[i], MPI.FLOAT], dest = i, tag = 607)
+            comm.Send([y_list[i], MPI.FLOAT], dest = i, tag = 608)
+            comm.Send([tri_list[i], MPI.INT], dest = i, tag = 609)
 
     # Mesh partitioning for secondary processors.
     if rank > 0:
 
         # Receive partition data from primary processor.
-        npoin_loc = comm.recv(source = 0, tag = 500)
-        nelem_loc = comm.recv(source = 0, tag = 501)
-        nx_loc = comm.recv(source = 0, tag = 502)
-        ny_loc = comm.recv(source = 0, tag = 503)
-        x_loc = np.empty(npoin_loc, dtype = float)
-        y_loc = np.empty(npoin_loc, dtype = float)
-        f_loc = np.empty(npoin_loc, dtype = float)
-        tri_loc = np.empty((nelem_loc, 3), dtype = int)
+        nx_loc = comm.recv(source = 0, tag = 600)
+        ny_loc = comm.recv(source = 0, tag = 601)
+        npoin_loc = comm.recv(source = 0, tag = 602)
+        nelem_loc = comm.recv(source = 0, tag = 603)
         X_loc = np.empty(nx_loc, dtype = float)
         Y_loc = np.empty(ny_loc, dtype = float)
-        comm.Recv([x_loc, MPI.FLOAT], source = 0, tag = 504)
-        comm.Recv([y_loc, MPI.FLOAT], source = 0, tag = 505)
-        comm.Recv([f_loc, MPI.FLOAT], source = 0, tag = 506)
-        comm.Recv([tri_loc, MPI.INT], source = 0, tag = 507)
-        comm.Recv([X_loc, MPI.FLOAT], source = 0, tag = 508)
-        comm.Recv([Y_loc, MPI.FLOAT], source = 0, tag = 509)
+        STATE_loc = np.empty((nx_loc, ny_loc), dtype = int)
+        x_loc = np.empty(npoin_loc, dtype = float)
+        y_loc = np.empty(npoin_loc, dtype = float)
+        tri_loc = np.empty((nelem_loc, 3), dtype = int)
+        comm.Recv([X_loc, MPI.FLOAT], source = 0, tag = 604)
+        comm.Recv([Y_loc, MPI.FLOAT], source = 0, tag = 605)
+        comm.Recv([STATE_loc, MPI.INT], source = 0, tag = 606)
+        comm.Recv([x_loc, MPI.FLOAT], source = 0, tag = 607)
+        comm.Recv([y_loc, MPI.FLOAT], source = 0, tag = 608)
+        comm.Recv([tri_loc, MPI.INT], source = 0, tag = 609)
 
-    # Interpolate.
-    F_loc = interpolation(x_loc, y_loc, f_loc, tri_loc, X_loc, Y_loc)
+    # Voronoi coverage.
+    cov_loc = voronoi_coverage(X_loc, Y_loc, STATE_loc, x_loc, y_loc, tri_loc)
 
     # Global mesh reconstruction for secondary processors.
     if rank > 0:
 
         # Send partition data to primary processor.
-        comm.Send([F_loc, MPI.FLOAT], dest = 0, tag = 510)
+        comm.Send([cov_loc, MPI.FLOAT], dest = 0, tag = 610)
 
     # Global mesh reconstruction for primary processor.
     if rank == 0:
 
         # Primary processor partition.
-        F_list = [F_loc]
+        cov_list = [cov_loc]
 
         # Receive partition data from secondary processors.
         for i in range(1, nproc):
-            nx_loc = X_list[i].shape[0]
-            ny_loc = Y_list[i].shape[0]
-            F_list.append(np.empty((nx_loc, ny_loc), dtype = float))
-            comm.Recv([F_list[i], MPI.FLOAT], source = i, tag = 510)
+            npoin_loc = x_list[i].shape[0]
+            cov_list.append(np.empty(npoin_loc, dtype = float))
+            comm.Recv([cov_list[i], MPI.FLOAT], source = i, tag = 610)
 
         # Reconstruction.
-        F = ca_mpi.mpi_aggregate_array(F_list, mpi_nx, mpi_ny)
+        cov = np.zeros(x.shape)
+        for i in range(nproc):
+            cov[glo2loc[i]] = cov_list[i][ext2loc[i]]
 
         # Save intermediate file.
-        np.savetxt(F_global_fn, F)"""
+        np.savetxt(cov_global_fn, cov)
