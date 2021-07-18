@@ -50,9 +50,6 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
     # Initialize matrix A.
     a = scipy.sparse.lil_matrix((npoin, npoin))
 
-    # Initialize lumped matrix A.
-    al = scipy.sparse.lil_matrix((npoin, npoin))
-
     # Initialize matrix b.
     b = scipy.sparse.lil_matrix((npoin, npoin))
 
@@ -70,32 +67,16 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
 
     # Feed matrix A.
     for i in range(ntri):
-        # Local matrix.
-        a_loc = jac[i] / 24 * np.array([[2, 1, 1], [1, 2, 1], [1, 1, 2]])
+        # Local matrix (mass lumping).
+        a_loc = jac[i] / 6 * np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         # Global indices of local nodes.
         i0 = tri[i, 0]
         i1 = tri[i, 1]
         i2 = tri[i, 2]
         # Feed matrix A.
         a[i0, i0] += a_loc[0, 0]
-        a[i0, i1] += a_loc[0, 1]
-        a[i0, i2] += a_loc[0, 2]
-        a[i1, i0] += a_loc[1, 0]
         a[i1, i1] += a_loc[1, 1]
-        a[i1, i2] += a_loc[1, 2]
-        a[i2, i0] += a_loc[2, 0]
-        a[i2, i1] += a_loc[2, 1]
         a[i2, i2] += a_loc[2, 2]
-        # Feed lumped matrix A.
-        al[i0, i0] += a_loc[0, 0]
-        al[i0, i0] += a_loc[0, 1]
-        al[i0, i0] += a_loc[0, 2]
-        al[i1, i1] += a_loc[1, 0]
-        al[i1, i1] += a_loc[1, 1]
-        al[i1, i1] += a_loc[1, 2]
-        al[i2, i2] += a_loc[2, 0]
-        al[i2, i2] += a_loc[2, 1]
-        al[i2, i2] += a_loc[2, 2]
 
     # Feed matrix b.
     for i in range(ntri):
@@ -141,7 +122,6 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
 
     # Convert to sparse matrices.
     a = scipy.sparse.csr_matrix(a)
-    al = scipy.sparse.csr_matrix(al)
     b = scipy.sparse.csr_matrix(b)
 
     # Initialize diffused array.
@@ -156,7 +136,7 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
         # the previous time step.
         f0 = f1.copy()
         # Solve linear matrix equation.
-        f1 = scipy.sparse.linalg.spsolve(al, a.dot(f0) + nu * dt * b.dot(f0))
+        f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * dt * b.dot(f0))
         # Update current time.
         ti += dt
         # Update values on ghost nodes in parallel mode.
@@ -165,7 +145,7 @@ def diffusion(x, y, f, tri, nu, dt, t, ghost = None):
 
     # Finale time step (t - ti <= dt).
     f0 = f1.copy()
-    f1 = scipy.sparse.linalg.spsolve(al, a.dot(f0) + nu * (t - ti) * b.dot(f0))
+    f1 = scipy.sparse.linalg.spsolve(a, a.dot(f0) + nu * (t - ti) * b.dot(f0))
 
     return f1
 
