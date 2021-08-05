@@ -39,9 +39,8 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1):
         #################
 
         # Create directory to store intermediate input files.
-        if os.path.isdir('./tmp_tel2ca'):
-            shutil.rmtree('./tmp_tel2ca')
-        os.mkdir('./tmp_tel2ca')
+        if not os.path.isdir('./tmp_tel2ca'):
+            os.mkdir('./tmp_tel2ca')
 
         # Intermediate file names.
         x_global_fn = './tmp_tel2ca/x_global.txt'
@@ -53,12 +52,17 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1):
         F_global_fn = './tmp_tel2ca/F_global.txt'
 
         # Save intermediate files.
-        np.savetxt(x_global_fn, x)
-        np.savetxt(y_global_fn, y)
+        if not os.path.isfile(x_global_fn):
+            np.savetxt(x_global_fn, x)
+        if not os.path.isfile(y_global_fn):
+            np.savetxt(y_global_fn, y)
         np.savetxt(f_global_fn, f)
-        np.savetxt(tri_global_fn, tri, fmt = '%d')
-        np.savetxt(X_global_fn, X)
-        np.savetxt(Y_global_fn, Y)
+        if not os.path.isfile(tri_global_fn):
+            np.savetxt(tri_global_fn, tri, fmt = '%d')
+        if not os.path.isfile(X_global_fn):
+            np.savetxt(X_global_fn, X)
+        if not os.path.isfile(Y_global_fn):
+            np.savetxt(Y_global_fn, Y)
 
         # Run Telemac to Cellular Automaton interpolation module.
         os.system('mpiexec -n %d python $DEMPATH/tel2ca_interpolation.py'
@@ -66,8 +70,5 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1):
 
         # Load intermediate file.
         F = np.loadtxt(F_global_fn)
-
-        # Delete intermediate directory.
-        shutil.rmtree('./tmp_tel2ca')
 
     return F
