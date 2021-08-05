@@ -1,5 +1,4 @@
 import os
-import shutil
 import sys
 
 import numpy as np
@@ -670,9 +669,9 @@ class Telemac(object):
 
         else:
 
-            #################
-            # Parallel mode #
-            #################
+            ##################
+            # Parallel mode. #
+            ##################
 
             # Create directory to store intermediate input files.
             if not os.path.isdir('./tmp_diffusion'):

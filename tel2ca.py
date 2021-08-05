@@ -4,8 +4,6 @@ Todo: Docstrings.
 
 """
 import os
-import shutil
-
 import numpy as np
 
 ################################################################################
@@ -34,9 +32,9 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1):
 
     else:
 
-        #################
-        # Parallel mode #
-        #################
+        ##################
+        # Parallel mode. #
+        ##################
 
         # Create directory to store intermediate input files.
         if not os.path.isdir('./tmp_tel2ca'):
