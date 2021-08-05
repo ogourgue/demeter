@@ -34,7 +34,7 @@ def get_domain_decomposition(nx, ny, nproc):
     return mpi_nx, mpi_ny
 
 ################################################################################
-def mpi_split_array(array, mpi_nx, mpi_ny):
+def mpi_split_array(array, mpi_nx, mpi_ny, contiguous = True):
     """Split a global array into list of partition arrays.
 
     Args:
@@ -52,7 +52,10 @@ def mpi_split_array(array, mpi_nx, mpi_ny):
     array_list = []
     for j in range(mpi_ny):
         for i in range(mpi_nx):
-            array_list.append(np.ascontiguousarray(tmp[i][j]))
+            if contiguous:
+                array_list.append(np.ascontiguousarray(tmp[i][j]))
+            else:
+                array_list.append(tmp[i][j])
 
     return array_list
 
