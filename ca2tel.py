@@ -62,14 +62,9 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1):
         if not os.path.isfile(tri_global_fn):
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
-        import time
-        start = time.time()
-
         # Run Cellular Automaton to Telemac voronoi coverage.
         os.system('mpiexec -n %d python $DEMPATH/ca2tel_voronoi_coverage.py'
                   % nproc)
-
-        print(time.time() - start)
 
         # Load intermediate file.
         cov = np.loadtxt(cov_global_fn)
