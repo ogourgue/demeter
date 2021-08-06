@@ -89,9 +89,6 @@ def interpolation(x, y, f, tri, X, Y):
 ################################################################################
 if __name__ == '__main__':
 
-    import time
-    start = time.time()
-
     # Global intermediate file names.
     x_global_fn = './tmp_tel2ca/x_global.txt'
     y_global_fn = './tmp_tel2ca/y_global.txt'
