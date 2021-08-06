@@ -3,6 +3,8 @@
 Todo: Docstrings.
 
 """
+import os
+
 import numpy as np
 from mpi4py import MPI
 
@@ -121,22 +123,28 @@ def voronoi(X, Y, x, y, tri):
 ################################################################################
 if __name__ == '__main__':
 
-    # Mesh partitioning by domain decomposition.
-    if rank == 0:
+    # Global intermediate file names.
+    X_global_fn = './tmp_ca2tel/X_global.txt'
+    Y_global_fn = './tmp_ca2tel/Y_global.txt'
+    STATE_global_fn = './tmp_ca2tel/STATE_global.txt'
+    x_global_fn = './tmp_ca2tel/x_global.txt'
+    y_global_fn = './tmp_ca2tel/y_global.txt'
+    tri_global_fn = './tmp_ca2tel/tri_global.txt'
+    cov_global_fn = './tmp_ca2tel/cov_global.txt'
+    bb_fn = './tmp_ca2tel/bb.txt'
+    npoin_fn = './tmp_ca2tel/npoin.txt'
 
-        # Intermediate file names.
-        X_global_fn = './tmp_ca2tel/X_global.txt'
-        Y_global_fn = './tmp_ca2tel/Y_global.txt'
-        STATE_global_fn = './tmp_ca2tel/STATE_global.txt'
-        x_global_fn = './tmp_ca2tel/x_global.txt'
-        y_global_fn = './tmp_ca2tel/y_global.txt'
-        tri_global_fn = './tmp_ca2tel/tri_global.txt'
-        cov_global_fn = './tmp_ca2tel/cov_global.txt'
+    # Test if mesh partitioning files are already available.
+    ready = False
+    if os.path.isfile(bb_fn):
+        ready = True
+
+    # Compute mesh partitioning by domain decomposition.
+    if rank == 0 and not ready:
 
         # Load intermediate files.
         X = np.loadtxt(X_global_fn)
         Y = np.loadtxt(Y_global_fn)
-        STATE = np.loadtxt(STATE_global_fn, dtype = int)
         x = np.loadtxt(x_global_fn)
         y = np.loadtxt(y_global_fn)
         tri = np.loadtxt(tri_global_fn, dtype = int)
@@ -149,8 +157,8 @@ if __name__ == '__main__':
         X, Y = np.meshgrid(X, Y, indexing = 'ij')
         nx, ny = X.shape
         mpi_nx, mpi_ny = ca_mpi.get_domain_decomposition(nx, ny, nproc)
-        X_list = ca_mpi.mpi_split_array(X, mpi_nx, mpi_ny)
-        Y_list = ca_mpi.mpi_split_array(Y, mpi_nx, mpi_ny)
+        X_list = ca_mpi.mpi_split_array(X, mpi_nx, mpi_ny, contiguous = False)
+        Y_list = ca_mpi.mpi_split_array(Y, mpi_nx, mpi_ny, contiguous = False)
         for i in range(nproc):
             X_list[i] = X_list[i][:, 0]
             Y_list[i] = Y_list[i][0, :]
@@ -177,8 +185,8 @@ if __name__ == '__main__':
             # Global indices of triangles with at least one vertex inside the
             # Cellular Automaton sub-domain.
             tmp = np.zeros(tri.shape[0], dtype = bool)
-            for j in range(tri.shape[0]):
-                tmp[j] = np.intersect1d(tri[j, :], nod_glo).shape[0] > 0
+            for j in range(3):
+                tmp[np.isin(tri[:, j], nod_glo)] = True
             tri_glo = tri[tmp, :]
             # Local nodes with global indices (including some outside the
             # Cellular Automaton sub-domain but that are vertices of triangles
@@ -203,7 +211,7 @@ if __name__ == '__main__':
         # partly inside).
         X_list = []
         Y_list = []
-        STATE_list = []
+        bb = np.zeros((nproc, 4))
         for i in range(nproc):
             # Bounding box coordinates.
             xmin = np.min(x_list[i])
@@ -219,86 +227,132 @@ if __name__ == '__main__':
             except:jmin = 0
             try:jmax = int(np.argwhere(Y >= ymax)[0])
             except:jmax = len(Y) - 1
-            # Extended Cellular Automaton coordinates and state.
+            # Extended Cellular Automaton coordinates.
             X_list.append(np.ascontiguousarray(X[imin:imax + 1]))
             Y_list.append(np.ascontiguousarray(Y[jmin:jmax + 1]))
+            # Add bounding box indices to bounding box array.
+            bb[i, 0] = imin
+            bb[i, 1] = imax
+            bb[i, 2] = jmin
+            bb[i, 3] = jmax
+
+        # Save local intermediate files.
+        for i in range(nproc):
+
+            # Local intermediate file names.
+            X_local_fn = './tmp_ca2tel/X_local_%d.txt' % i
+            Y_local_fn = './tmp_ca2tel/Y_local_%d.txt' % i
+            x_local_fn = './tmp_ca2tel/x_local_%d.txt' % i
+            y_local_fn = './tmp_ca2tel/y_local_%d.txt' % i
+            tri_local_fn = './tmp_ca2tel/tri_local_%d.txt' % i
+            glo2loc_local_fn = './tmp_ca2tel/glo2loc_local_%d.txt' % i
+            ext2loc_local_fn = './tmp_ca2tel/ext2loc_local_%d.txt' % i
+
+            # Save local intermediate files.
+            np.savetxt(X_local_fn, X_list[i])
+            np.savetxt(Y_local_fn, Y_list[i])
+            np.savetxt(x_local_fn, x_list[i])
+            np.savetxt(y_local_fn, y_list[i])
+            np.savetxt(tri_local_fn, tri_list[i], fmt = '%d')
+            np.savetxt(glo2loc_local_fn, glo2loc[i], fmt = '%d')
+            np.savetxt(ext2loc_local_fn, ext2loc[i], fmt = '%d')
+
+        # Save global intermediate files.
+        np.savetxt(bb_fn, bb, fmt = '%d')
+        np.savetxt(npoin_fn, np.array([x.shape[0]]), fmt = '%d')
+
+    # Primary processor decomposes input variable for each partition and sends
+    # partitions to secondary processors.
+    if rank == 0:
+
+        # Load global input variable.
+        STATE = np.loadtxt(STATE_global_fn, dtype = int)
+
+        # Load bounding box file.
+        bb = np.loadtxt(bb_fn, dtype = int)
+
+        # Input variable for each partition.
+        STATE_list = []
+        for i in range(nproc):
+            imin = bb[i, 0]
+            imax = bb[i, 1]
+            jmin = bb[i, 2]
+            jmax = bb[i, 3]
             STATE_list.append(np.ascontiguousarray(STATE[imin:imax + 1,
                                                          jmin:jmax + 1]))
 
-    # Mesh partitioning for primary processor.
-    if rank == 0:
-
         # Primary processor partition.
-        X_loc = X_list[0]
-        Y_loc = Y_list[0]
         STATE_loc = STATE_list[0]
-        x_loc = x_list[0]
-        y_loc = y_list[0]
-        tri_loc = tri_list[0]
 
-        # Send partition data to secondary processors.
+        # Send partitions to secondary processors.
         for i in range(1, nproc):
-            nx_loc = X_list[i].shape[0]
-            ny_loc = Y_list[i].shape[0]
-            npoin_loc = x_list[i].shape[0]
-            nelem_loc = tri_list[i].shape[0]
+            nx_loc = STATE_list[i].shape[0]
+            ny_loc = STATE_list[i].shape[1]
             comm.send(nx_loc, dest = i, tag = 600)
             comm.send(ny_loc, dest = i, tag = 601)
-            comm.send(npoin_loc, dest = i, tag = 602)
-            comm.send(nelem_loc, dest = i, tag = 603)
-            comm.Send([X_list[i], MPI.FLOAT], dest = i, tag = 604)
-            comm.Send([Y_list[i], MPI.FLOAT], dest = i, tag = 605)
-            comm.Send([STATE_list[i], MPI.INT], dest = i, tag = 606)
-            comm.Send([x_list[i], MPI.FLOAT], dest = i, tag = 607)
-            comm.Send([y_list[i], MPI.FLOAT], dest = i, tag = 608)
-            comm.Send([tri_list[i], MPI.INT], dest = i, tag = 609)
+            comm.Send([STATE_list[i], MPI.INT], dest = i, tag = 602)
 
-    # Mesh partitioning for secondary processors.
+    # Secondary processors receive input variable partitions from primary
+    # processor.
     if rank > 0:
 
-        # Receive partition data from primary processor.
+        # Receive partition from primary processor.
         nx_loc = comm.recv(source = 0, tag = 600)
         ny_loc = comm.recv(source = 0, tag = 601)
-        npoin_loc = comm.recv(source = 0, tag = 602)
-        nelem_loc = comm.recv(source = 0, tag = 603)
-        X_loc = np.empty(nx_loc, dtype = float)
-        Y_loc = np.empty(ny_loc, dtype = float)
         STATE_loc = np.empty((nx_loc, ny_loc), dtype = int)
-        x_loc = np.empty(npoin_loc, dtype = float)
-        y_loc = np.empty(npoin_loc, dtype = float)
-        tri_loc = np.empty((nelem_loc, 3), dtype = int)
-        comm.Recv([X_loc, MPI.FLOAT], source = 0, tag = 604)
-        comm.Recv([Y_loc, MPI.FLOAT], source = 0, tag = 605)
-        comm.Recv([STATE_loc, MPI.INT], source = 0, tag = 606)
-        comm.Recv([x_loc, MPI.FLOAT], source = 0, tag = 607)
-        comm.Recv([y_loc, MPI.FLOAT], source = 0, tag = 608)
-        comm.Recv([tri_loc, MPI.INT], source = 0, tag = 609)
+        comm.Recv([STATE_loc, MPI.INT], source = 0, tag = 602)
+
+    # Local intermediate file names.
+    X_local_fn = './tmp_ca2tel/X_local_%d.txt' % rank
+    Y_local_fn = './tmp_ca2tel/Y_local_%d.txt' % rank
+    x_local_fn = './tmp_ca2tel/x_local_%d.txt' % rank
+    y_local_fn = './tmp_ca2tel/y_local_%d.txt' % rank
+    tri_local_fn = './tmp_ca2tel/tri_local_%d.txt' % rank
+
+    # Load local mesh partition.
+    X_loc = np.loadtxt(X_local_fn)
+    Y_loc = np.loadtxt(Y_local_fn)
+    x_loc = np.loadtxt(x_local_fn)
+    y_loc = np.loadtxt(y_local_fn)
+    tri_loc = np.loadtxt(tri_local_fn, dtype = int)
 
     # Voronoi coverage.
     cov_loc = voronoi_coverage(X_loc, Y_loc, STATE_loc, x_loc, y_loc, tri_loc)
 
-    # Global mesh reconstruction for secondary processors.
+    # Secondary processors send output variable partitions to primary processor.
     if rank > 0:
 
-        # Send partition data to primary processor.
-        comm.Send([cov_loc, MPI.FLOAT], dest = 0, tag = 610)
+        # Send partition to primary processor.
+        npoin_loc = cov_loc.shape[0]
+        comm.send(npoin_loc, dest = 0, tag = 603)
+        comm.Send([cov_loc, MPI.FLOAT], dest = 0, tag = 604)
 
-    # Global mesh reconstruction for primary processor.
+    # Primary processor receives partitions from secondary processors and
+    # reconstructs output variable.
     if rank == 0:
 
         # Primary processor partition.
         cov_list = [cov_loc]
 
-        # Receive partition data from secondary processors.
+        # Receive partition from secondary processors.
         for i in range(1, nproc):
-            npoin_loc = x_list[i].shape[0]
+            npoin_loc = comm.recv(source = i, tag = 603)
             cov_list.append(np.empty(npoin_loc, dtype = float))
-            comm.Recv([cov_list[i], MPI.FLOAT], source = i, tag = 610)
+            comm.Recv([cov_list[i], MPI.FLOAT], source = i, tag = 604)
+
+        # Load number of Telemac grid nodes.
+        npoin = np.loadtxt(npoin_fn, dtype = int)
 
         # Reconstruction.
-        cov = np.zeros(x.shape)
+        cov = np.zeros(npoin)
         for i in range(nproc):
-            cov[glo2loc[i]] = cov_list[i][ext2loc[i]]
+            # Load local intermediate files.
+            glo2loc_local_fn = './tmp_ca2tel/glo2loc_local_%d.txt' % i
+            ext2loc_local_fn = './tmp_ca2tel/ext2loc_local_%d.txt' % i
+            glo2loc = np.loadtxt(glo2loc_local_fn, dtype = int)
+            ext2loc = np.loadtxt(ext2loc_local_fn, dtype = int)
+            # Reconstruction
+            cov[glo2loc] = cov_list[i][ext2loc]
 
         # Save intermediate file.
         np.savetxt(cov_global_fn, cov)

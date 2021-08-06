@@ -4,8 +4,6 @@ Todo: Docstrings.
 
 """
 import os
-import shutil
-
 import numpy as np
 
 ################################################################################
@@ -39,9 +37,8 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1):
         #################
 
         # Create directory to store intermediate input files.
-        if os.path.isdir('./tmp_ca2tel'):
-            shutil.rmtree('./tmp_ca2tel')
-        os.mkdir('./tmp_ca2tel')
+        if not os.path.isdir('./tmp_ca2tel'):
+            os.mkdir('./tmp_ca2tel')
 
         # Intermediate file names.
         X_global_fn = './tmp_ca2tel/X_global.txt'
@@ -53,21 +50,28 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1):
         cov_global_fn = './tmp_ca2tel/cov_global.txt'
 
         # Save intermediate files.
-        np.savetxt(X_global_fn, X)
-        np.savetxt(Y_global_fn, Y)
+        if not os.path.isfile(X_global_fn):
+            np.savetxt(X_global_fn, X)
+        if not os.path.isfile(Y_global_fn):
+            np.savetxt(Y_global_fn, Y)
         np.savetxt(STATE_global_fn, STATE, fmt = '%d')
-        np.savetxt(x_global_fn, x)
-        np.savetxt(y_global_fn, y)
-        np.savetxt(tri_global_fn, tri, fmt = '%d')
+        if not os.path.isfile(x_global_fn):
+            np.savetxt(x_global_fn, x)
+        if not os.path.isfile(y_global_fn):
+            np.savetxt(y_global_fn, y)
+        if not os.path.isfile(tri_global_fn):
+            np.savetxt(tri_global_fn, tri, fmt = '%d')
+
+        import time
+        start = time.time()
 
         # Run Cellular Automaton to Telemac voronoi coverage.
         os.system('mpiexec -n %d python $DEMPATH/ca2tel_voronoi_coverage.py'
                   % nproc)
 
+        print(time.time() - start)
+
         # Load intermediate file.
         cov = np.loadtxt(cov_global_fn)
-
-        # Delete intermediate directory.
-        shutil.rmtree('./tmp_ca2tel')
 
     return cov
