@@ -43,10 +43,6 @@ def run(state, p_est, p_die, r_exp, nt, mpi_nx = 1, mpi_ny = 1):
 
     # Loop over iterations.
     for i in range(nt):
-
-        if rank == 0:
-            print('*** loop %d **** %.2f' % (i, time.time() - start))
-
         # Number of neighbors.
         nn = get_number_neighbors(state, mpi_nx, mpi_ny)
         # Update probability of expansion. Multiplied by .25 so that number-of-
