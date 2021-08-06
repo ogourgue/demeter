@@ -210,10 +210,6 @@ if __name__ == '__main__':
     # Mesh partitioning by domain decomposition.
     if rank == 0:
 
-        import time
-        start = time.time()
-        print('*** 0 **** %.2f' % (time.time() - start))
-
         # Intermediate file names.
         state_0_global_fn = './tmp_cellular_automaton/state_0_global.txt'
         state_1_global_fn = './tmp_cellular_automaton/state_1_global.txt'
@@ -234,8 +230,6 @@ if __name__ == '__main__':
         p_est_list = ca_mpi.mpi_split_array(p_est, mpi_nx, mpi_ny)
         p_die_list = ca_mpi.mpi_split_array(p_die, mpi_nx, mpi_ny)
         r_exp_list = ca_mpi.mpi_split_array(r_exp, mpi_nx, mpi_ny)
-
-        print('*** 1 **** %.2f' % (time.time() - start))
 
         # Generate random seeds for all processes (required for
         # reproducibility).
@@ -266,8 +260,6 @@ if __name__ == '__main__':
             comm.Send([p_die_list[i], MPI.FLOAT], dest = i, tag = 307)
             comm.Send([r_exp_list[i], MPI.FLOAT], dest = i, tag = 308)
 
-        print('*** 2 **** %.2f' % (time.time() - start))
-
     # Mesh partitioning for secondary processors.
     if rank > 0:
 
@@ -286,16 +278,10 @@ if __name__ == '__main__':
         comm.Recv([p_die_loc, MPI.FLOAT], source = 0, tag = 307)
         comm.Recv([r_exp_loc, MPI.FLOAT], source = 0, tag = 308)
 
-    if rank == 0:
-        print('*** 3 **** %.2f' % (time.time() - start))
-
     # Run Cellular Automaton.
     np.random.seed(seed_loc)
     state_1_loc = run(state_0_loc, p_est_loc, p_die_loc, r_exp_loc, nt, mpi_nx,
                       mpi_ny)
-
-    if rank == 0:
-        print('*** 4 **** %.2f' % (time.time() - start))
 
     # Global mesh reconstruction for secondary processors.
     if rank > 0:
@@ -305,8 +291,6 @@ if __name__ == '__main__':
 
     # Global mesh reconstruction for primary processor.
     if rank == 0:
-
-        print('*** 5 **** %.2f' % (time.time() - start))
 
         # Primary processor partition.
         state_1_list = [state_1_loc]
@@ -318,12 +302,8 @@ if __name__ == '__main__':
             state_1_list.append(np.empty((nx_loc, ny_loc), dtype = int))
             comm.Recv([state_1_list[i], MPI.INT], source = i, tag = 307)
 
-        print('*** 6 **** %.2f' % (time.time() - start))
-
         # Reconstruction.
         state_1 = ca_mpi.mpi_aggregate_array(state_1_list, mpi_nx, mpi_ny)
-
-        print('*** 7 **** %.2f' % (time.time() - start))
 
         # Save intermediate file.
         np.savetxt(state_1_global_fn, state_1, fmt = '%d')
