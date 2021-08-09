@@ -11,7 +11,7 @@ class CellularAutomaton(object):
 
     """
 
-    def __init__(self, x0, y0, nx, ny, dx):
+    def __init__(self, x0, y0, nx, ny, dx, times = None, state = None):
         """Create a cellular automaton instance from grid parameters.
 
         Args:
@@ -20,6 +20,10 @@ class CellularAutomaton(object):
             nx (int): Number of grid cells along x-axis.
             ny (int): Number of grid cells along y-axis.
             dx (float): Grid cell length.
+            times (NumPy array, optional): Time steps (s). Default to None (no
+                time step).
+            state (NumPy array): Cellular automaton state for each time step.
+                Default to None (no time step).
 
         """
         # Grid parameters.
@@ -34,10 +38,16 @@ class CellularAutomaton(object):
         self.y = np.linspace(y0, y0 + (ny - 1) * dx, ny)
 
         # Time (empty).
-        self.times = []
+        if times is None:
+            self.times = []
+        else:
+            self.times = times
 
         # Cellular automaton state (empty).
-        self.state = np.zeros((0, nx, ny), dtype = int)
+        if state is None:
+            self.state = np.zeros((0, nx, ny), dtype = int)
+        else:
+            self.state = state
 
         # Probability of establishment.
         self.p_est = np.zeros((nx, ny))
@@ -80,7 +90,7 @@ class CellularAutomaton(object):
 
         # Import last time step.
         elif step == -1:
-            times = times[-1]
+            times = [times[-1]]
             # Skip preceding time steps.
             file.seek(nx * ny * (nt - 1), 1)
             # Read data.
@@ -112,21 +122,7 @@ class CellularAutomaton(object):
         # Lateral expansion rate.
         r_exp = np.zeros((nx, ny))
 
-        # Class attributes.
-        cls.x0 = x0
-        cls.y0 = y0
-        cls.nx = nx
-        cls.ny = ny
-        cls.dx = dx
-        cls.times = times
-        cls.state = state
-        cls.x = x
-        cls.y = y
-        cls.p_est = p_est
-        cls.p_die = p_die
-        cls.r_exp = r_exp
-
-        return cls
+        return cls(x0, y0, nx, ny, dx, times, state)
 
     ############################################################################
     def export(self, filename, step = None):
