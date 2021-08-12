@@ -81,7 +81,7 @@ class CellularAutomaton(object):
         nt = np.fromfile(file, dtype = int, count = 1)[0]
 
         # Read times.
-        times = np.fromfile(file, dtype = float, count = nt)
+        times = list(np.fromfile(file, dtype = float, count = nt))
 
         # Import all time steps.
         if step is None:
