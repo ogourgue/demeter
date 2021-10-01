@@ -81,7 +81,7 @@ class CellularAutomaton(object):
         nt = np.fromfile(file, dtype = int, count = 1)[0]
 
         # Read times.
-        times = np.fromfile(file, dtype = float, count = nt)
+        times = list(np.fromfile(file, dtype = float, count = nt))
 
         # Import all time steps.
         if step is None:
@@ -209,7 +209,7 @@ class CellularAutomaton(object):
         self.r_exp = r_exp
 
     ############################################################################
-    def run(self, nt, nproc = 1):
+    def run(self, nt, nproc = 1, launcher = 'mpiexec'):
         """Run cellular automaton and update state.
 
         Args:
@@ -265,7 +265,7 @@ class CellularAutomaton(object):
             seed = np.random.randint(2 ** 32)
 
             # Run parallel Cellular Automaton run module.
-            os.system('mpiexec -n %d python ' % nproc +
+            os.system(launcher + ' -n %d python ' % nproc +
                       '$DEMPATH/cellular_automaton_run.py %d %d' % (nt, seed))
 
             # Load intermediate file.

@@ -621,7 +621,8 @@ class Telemac(object):
             self.cov = np.zeros(self.cov.shape)
 
     ############################################################################
-    def diffuse_bottom(self, nu, dt, t, nproc = 1, step = -1):
+    def diffuse_bottom(self, nu, dt, t, nproc = 1, launcher = 'mpiexec',
+                       step = -1):
         """Smooth the bottom surface by diffusion.
 
         Args:
@@ -694,7 +695,7 @@ class Telemac(object):
                 np.savetxt(tri_global_fn, tri, fmt = '%d')
 
             # Run parallel diffusion module.
-            os.system('mpiexec -n %d python ' % nproc +
+            os.system(launcher + ' -n %d python ' % nproc +
                       '$DEMPATH/telemac_diffusion.py %f %f %f' % (nu, dt, t))
 
             # Load intermediate file.

@@ -479,3 +479,5 @@ if __name__ == '__main__':
 
         # Save intermediate file.
         np.savetxt(f1_global_fn, f1)
+
+    MPI.Finalize()

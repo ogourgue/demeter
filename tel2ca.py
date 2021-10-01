@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 ################################################################################
-def interpolation(x, y, f, tri, X, Y, nproc = 1):
+def interpolation(x, y, f, tri, X, Y, nproc = 1, launcher = 'mpiexec'):
     """Interpolate a Telemac variable on a Cellular Automaton grid.
 
     Args:
@@ -63,7 +63,7 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1):
             np.savetxt(Y_global_fn, Y)
 
         # Run Telemac to Cellular Automaton interpolation module.
-        os.system('mpiexec -n %d python $DEMPATH/tel2ca_interpolation.py'
+        os.system(launcher + ' -n %d python $DEMPATH/tel2ca_interpolation.py'
                   % nproc)
 
         # Load intermediate file.

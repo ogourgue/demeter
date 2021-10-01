@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 ################################################################################
-def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1):
+def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
     """Calculate coverage over Voronoi neighborhoods.
 
     Args:
@@ -63,7 +63,7 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1):
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
         # Run Cellular Automaton to Telemac voronoi coverage.
-        os.system('mpiexec -n %d python $DEMPATH/ca2tel_voronoi_coverage.py'
+        os.system(launcher + ' -n %d python $DEMPATH/ca2tel_voronoi_coverage.py'
                   % nproc)
 
         # Load intermediate file.

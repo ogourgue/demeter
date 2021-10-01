@@ -303,3 +303,5 @@ if __name__ == '__main__':
 
         # Save intermediate file.
         np.savetxt(state_1_global_fn, state_1, fmt = '%d')
+
+    MPI.Finalize()
