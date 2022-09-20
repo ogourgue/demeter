@@ -25,9 +25,10 @@ class CellularAutomaton(object):
                 time step).
             state (NumPy array): Cellular automaton state for each time step.
                 Default to None (no time step).
-            with_age (bool): True if age is computed. Default to False.
-            age (NumPy array): Age for each time step. Default to None (no time
-                step).
+            with_age (bool): True if cellular automaton age must be computed.
+                Default to False.
+            age (NumPy array): Cellular automaton age for each time step.
+                Default to None (no time step).
 
         """
         # Grid parameters.
@@ -53,7 +54,7 @@ class CellularAutomaton(object):
         else:
             self.state = state
 
-        # Age.
+        # Cellular automaton age.
         if with_age:
             if age is None:
                 self.age = np.zeros((0, nx, ny), dtype = int)
@@ -82,7 +83,7 @@ class CellularAutomaton(object):
             None (all time steps are imported).
 
         Todo:
-            Implement age.
+            Implement cellular automaton age.
             Move to np.uint8 data type in file. File version system will be
                 needed to keep possibility to open old files.
 
@@ -209,10 +210,10 @@ class CellularAutomaton(object):
 
     ############################################################################
     def append_age(self, age):
-        """Append age.
+        """Append cellular automaton age.
 
         Args:
-            age (NumPy array): Age to append.
+            age (NumPy array): Cellular automaton age to append.
 
         """
         # Reshape array to append.
@@ -313,13 +314,13 @@ class CellularAutomaton(object):
         # Append new cellular automaton state.
         self.append_state(state_1)
 
-        # Update age.
+        # Update cellular automaton age.
         if self.age is not None:
             age_1 = self.age[-1, :, :]
             age_1[np.logical_and(state_0 == 0, state_1 > 0)] += 1
             age_1[np.logical_and(state_0 > 0, state_0 == state_1)] += 1
 
-        # Append new age.
+        # Append new cellular automator age.
         if self.age is not None:
             self.append_age(age_1)
 
