@@ -313,6 +313,16 @@ class CellularAutomaton(object):
         # Append new cellular automaton state.
         self.append_state(state_1)
 
+        # Update age.
+        if self.age is not None:
+            age_1 = self.age[-1, :, :]
+            age_1[np.logical_and(state_0 == 0, state_1 > 0)] += 1
+            age_1[np.logical_and(state_0 > 0, state_0 == state_1)] += 1
+
+        # Append new age.
+        if self.age is not None:
+            self.append_age(age_1)
+
     ############################################################################
     def remove_time_step(self, step = 0):
         """Remove one time step from state and times.
