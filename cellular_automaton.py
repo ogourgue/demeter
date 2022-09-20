@@ -81,6 +81,11 @@ class CellularAutomaton(object):
             step (int): Time step to import (-1 for last time step). Default to
             None (all time steps are imported).
 
+        Todo:
+            Implement age.
+            Move to np.uint8 data type in file. File version system will be
+                needed to keep possibility to open old files.
+
         """
         # Open file.
         file = open(filename, 'rb')
@@ -145,6 +150,10 @@ class CellularAutomaton(object):
             filename (str): Name of the file to export.
             step (int, optional): Time step to export (-1 for last time step).
                 Default to None (all time steps are imported).
+
+        Todo:
+            Move to np.uint8 data type in file. Once this is done, there will be
+                no possibility to export the old way.
 
         """
         # Lists of time steps.
