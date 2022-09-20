@@ -11,7 +11,8 @@ class CellularAutomaton(object):
 
     """
 
-    def __init__(self, x0, y0, nx, ny, dx, times = None, state = None):
+    def __init__(self, x0, y0, nx, ny, dx, times = None, state = None,
+                 with_age = False, age = None):
         """Create a cellular automaton instance from grid parameters.
 
         Args:
@@ -24,6 +25,9 @@ class CellularAutomaton(object):
                 time step).
             state (NumPy array): Cellular automaton state for each time step.
                 Default to None (no time step).
+            with_age (bool): True if age is computed. Default to False.
+            age (NumPy array): Age for each time step. Default to None (no time
+                step).
 
         """
         # Grid parameters.
@@ -37,17 +41,26 @@ class CellularAutomaton(object):
         self.x = np.linspace(x0, x0 + (nx - 1) * dx, nx)
         self.y = np.linspace(y0, y0 + (ny - 1) * dx, ny)
 
-        # Time (empty).
+        # Time.
         if times is None:
             self.times = []
         else:
             self.times = times
 
-        # Cellular automaton state (empty).
+        # Cellular automaton state.
         if state is None:
             self.state = np.zeros((0, nx, ny), dtype = int)
         else:
             self.state = state
+
+        # Age.
+        if with_age:
+            if age is None:
+                self.age = np.zeros((0, nx, ny), dtype = int)
+            else:
+                self.age = age
+        else:
+            self.age = None
 
         # Probability of establishment.
         self.p_est = np.zeros((nx, ny))
