@@ -208,6 +208,20 @@ class CellularAutomaton(object):
         self.state = np.append(self.state, state, axis = 0)
 
     ############################################################################
+    def append_age(self, age):
+        """Append age.
+
+        Args:
+            age (NumPy array): Age to append.
+
+        """
+        # Reshape array to append.
+        age = age.reshape((1, self.nx, self.ny))
+
+        # Append age.
+        self.age = np.append(self.age, age, axis = 0)
+
+    ############################################################################
     def update_probabilities(self, p_est, p_die, r_exp):
         """Update cellular automaton probabilities.
 
