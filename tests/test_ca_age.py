@@ -12,11 +12,12 @@ dx = 1
 nt = 10
 
 # Create cellular automaton.
-ca = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, dx)
+ca = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, dx, with_age = True)
 
 # Append initial time and state.
 ca.append_times(0)
-ca.append_state(np.zeros((nx, ny)))
+ca.append_state(np.zeros((nx, ny), dtype = int))
+ca.append_age(np.zeros((nx, ny), dtype = int))
 
 # Loop over years.
 for i in range(nt):
@@ -26,3 +27,7 @@ for i in range(nt):
 # Tests.
 for i in range(nt):
     assert ca.state[-1, i, i] == 1
+    assert ca.age[-1, i, i] == 10 - i
+
+
+# Todo: Test with randome establishment.
