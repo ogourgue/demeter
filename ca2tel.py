@@ -18,6 +18,7 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
         y (NumPy array): Telemac grid node y-coordinates.
         tri (NumPy array): Telemac grid connectivity table.
         nproc (int, optional): Number of MPI processes. Default to 1 (no MPI).
+        launcher (str, optional): MPI launcher. Default to 'mpiexec'.
 
     """
     if nproc <= 1:
@@ -70,3 +71,32 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
         cov = np.loadtxt(cov_global_fn)
 
     return cov
+
+################################################################################
+def voronoi_age(X, Y, STATE, AGE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
+    """Calculate mean age of vegetated cells over Voronoi neighborhoods.
+
+    Args:
+        X (NumPy array): Cellular Automaton grid cell x-coordinates (1D).
+        Y (NumPy array): Cellular Automaton grid cell y-coordinates (1D).
+        STATE (numPy array): Cellular Automaton state.
+        AGE (numPy array): Cellular Automaton age.
+        x (NumPy array): Telemac grid node x-coordinates.
+        y (NumPy array): Telemac grid node y-coordinates.
+        tri (NumPy array): Telemac grid connectivity table.
+        nproc (int, optional): Number of MPI processes. Default to 1 (no MPI).
+        launcher (str, optional): MPI launcher. Default to 'mpiexec'.
+
+    """
+    if nproc <= 1:
+
+        ################
+        # Serial mode. #
+        ################
+
+        # Call voronoi age function.
+        from demeter import ca2tel_voronoi_age
+        age = ca2tel_voronoi_age.voronoi_age(X, Y, STATE, AGE, x, y, tri)
+
+    return age
+
