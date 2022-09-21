@@ -309,8 +309,7 @@ class CellularAutomaton(object):
         # Update cellular automaton age.
         if self.age is not None:
             age_1 = self.age[-1, :, :]
-            age_1[np.logical_and(state_0 == 0, state_1 > 0)] += 1
-            age_1[np.logical_and(state_0 > 0, state_0 == state_1)] += 1
+            age_1[state_1 > 0] += 1
 
         # Append new cellular automator age.
         if self.age is not None:
