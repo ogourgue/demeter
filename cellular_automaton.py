@@ -86,7 +86,6 @@ class CellularAutomaton(object):
             Implement cellular automaton age.
             Move to np.uint8 data type in file. File version system will be
                 needed to keep possibility to open old files.
-            Move most code to another import function.
 
         """
         # Open file.
@@ -165,6 +164,11 @@ class CellularAutomaton(object):
         else:
             steps = [step]
 
+        # Time.
+        times = []
+        for step in steps:
+            times.append(self.times[step])
+
         # Open file.
         file = open(filename, 'w')
 
@@ -174,12 +178,9 @@ class CellularAutomaton(object):
         np.array(self.nx, dtype = int).tofile(file)
         np.array(self.ny, dtype = int).tofile(file)
         np.array(self.dx, dtype = float).tofile(file)
-        np.array(len(steps), dtype = int).tofile(file)
+        np.array(len(times), dtype = int).tofile(file)
 
         # Export time.
-        times = []
-        for step in steps:
-            times.append(self.times[step])
         np.array(times, dtype = float).tofile(file)
 
         # Export data per time step.
