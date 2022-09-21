@@ -36,6 +36,7 @@ ca.update_probabilities(p_est, p_die, r_exp)
 # Loop over years.
 for i in range(nt):
     ca.run(1)
+    ca.append_times(i + 1)
 
 # Final state.
 ref = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -76,6 +77,7 @@ ca.update_probabilities(p_est, p_die, r_exp)
 # Loop over years.
 for i in range(nt):
     ca.run(1)
+    ca.append_times(i + 1)
 
 # Final state.
 ref = np.array([[0, 0, 1, 0, 1, 1, 0, 0, 1, 1],
@@ -123,6 +125,7 @@ ca_nt = cellular_automaton.number_iterations(r_exp, dx)
 # Loop over years.
 for i in range(nt):
     ca.run(ca_nt)
+    ca.append_times(i + 1)
 
 # Final state.
 ref = np.array([[0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
@@ -167,6 +170,7 @@ ca_nt = cellular_automaton.number_iterations(r_exp, dx)
 # Loop over years.
 for i in range(nt):
     ca.run(ca_nt)
+    ca.append_times(i + 1)
 
 # Final state.
 ref = np.array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
@@ -217,6 +221,7 @@ ca_nt = cellular_automaton.number_iterations(r_exp, dx)
 # Loop over years.
 for i in range(nt):
     ca.run(ca_nt)
+    ca.append_times(i + 1)
 
 # Final state.
 ref = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
