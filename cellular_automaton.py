@@ -84,8 +84,6 @@ class CellularAutomaton(object):
 
         Todo:
             Implement cellular automaton age.
-            Move to np.uint8 data type in file. File version system will be
-                needed to keep possibility to open old files.
 
         """
         # Import file.
