@@ -88,45 +88,13 @@ class CellularAutomaton(object):
                 needed to keep possibility to open old files.
 
         """
-        # Open file.
-        file = open(filename, 'rb')
-
-        # Read header.
-        x0 = np.fromfile(file, dtype = float, count = 1)[0]
-        y0 = np.fromfile(file, dtype = float, count = 1)[0]
-        nx = np.fromfile(file, dtype = int, count = 1)[0]
-        ny = np.fromfile(file, dtype = int, count = 1)[0]
-        dx = np.fromfile(file, dtype = float, count = 1)[0]
-        nt = np.fromfile(file, dtype = int, count = 1)[0]
-
-        # Read times.
-        times = list(np.fromfile(file, dtype = float, count = nt))
-
-        # Import all time steps.
-        if step is None:
-            state = np.fromfile(file, dtype = np.int8, count = nt * nx * ny)
-            state = state.reshape((nt, nx, ny)).astype(int)
-
-        # Import last time step.
-        elif step == -1:
-            times = [times[-1]]
-            # Skip preceding time steps.
-            file.seek(nx * ny * (nt - 1), 1)
-            # Read data.
-            state = np.fromfile(file, dtype = np.int8, count = nx * ny)
-            state = state.reshape((1, nx, ny)).astype(int)
-
-        # Import specific time step.
-        else:
-            times = times[step]
-            # Skip preceding time steps.
-            file.seek(nx * ny * step, 1)
-            # Read data.
-            state = np.fromfile(file, dtype = np.int8, count = nx * ny)
-            state = state.reshape((1, nx, ny)).astype(int)
-
-        # Close file.
-        file.close()
+        # Import file.
+        data, times, state = import_state_v1(filename, step, True, True)
+        x0 = data[0]
+        y0 = data[1]
+        nx = data[2]
+        ny = data[3]
+        dx = data[4]
 
         # Grid coordinates.
         x = np.linspace(x0, x0 + (nx - 1) * dx, nx)
@@ -158,7 +126,14 @@ class CellularAutomaton(object):
                 export the old way.
 
         """
-        # Lists of time steps.
+        # Class attributes.
+        x0 = self.x0
+        y0 = self.y0
+        nx = self.nx
+        ny = self.ny
+        dx = self.dx
+
+        # Time steps.
         if step is None:
             steps = list(range(len(self.times)))
         else:
@@ -169,26 +144,11 @@ class CellularAutomaton(object):
         for step in steps:
             times.append(self.times[step])
 
-        # Open file.
-        file = open(filename, 'w')
+        # Cellular automaton state.
+        state = self.state[steps, :, :]
 
-        # Export header.
-        np.array(self.x0, dtype = float).tofile(file)
-        np.array(self.y0, dtype = float).tofile(file)
-        np.array(self.nx, dtype = int).tofile(file)
-        np.array(self.ny, dtype = int).tofile(file)
-        np.array(self.dx, dtype = float).tofile(file)
-        np.array(len(times), dtype = int).tofile(file)
-
-        # Export time.
-        np.array(times, dtype = float).tofile(file)
-
-        # Export data per time step.
-        for step in steps:
-            np.array(self.state[step, :, :], dtype = np.int8).tofile(file)
-
-        # Close file.
-        file.close()
+        # Export file.
+        export_state_v1(filename, x0, y0, nx, ny, dx, times, state)
 
     ############################################################################
     def append_times(self, time):
@@ -384,3 +344,115 @@ def number_iterations(r_exp, dx, n = 2):
         r_max = nt * dx
 
     return nt
+
+################################################################################
+def export_state_v1(filename, x0, y0, nx, ny, dx, times, state):
+    """Export cellular automaton state output file (version 1).
+
+    Version 1 of cellular automaton output files is deprecated. This function is
+        kept so it is still possible to read old output files.
+
+    Args:
+        filename (str): Name of the file to export.
+        x0 (float): x-coordinate of the center of the lower-left grid cell.
+        y0 (float): y-coordinate of the center of the lower-left grid cell.
+        nx (int): Number of grid cells along x-axis.
+        ny (int): Number of grid cells along y-axis.
+        dx (float): Grid cell length.
+        times (NumPy array): Time steps (s).
+
+    Todo:
+        Move to np.uint8 data type in file and add a version string int he
+            header. Once this is done, there will be no possibility to
+            export the old way.
+
+    """
+    # Open file.
+    file = open(filename, 'w')
+
+    # Export header.
+    np.array(x0, dtype = float).tofile(file)
+    np.array(y0, dtype = float).tofile(file)
+    np.array(nx, dtype = int).tofile(file)
+    np.array(ny, dtype = int).tofile(file)
+    np.array(dx, dtype = float).tofile(file)
+    np.array(len(times), dtype = int).tofile(file)
+
+    # Export time.
+    np.array(times, dtype = float).tofile(file)
+
+    # Export data per time step.
+    for i in range(len(times)):
+        np.array(state[i, :, :], dtype = np.int8).tofile(file)
+
+    # Close file.
+    file.close()
+
+################################################################################
+def import_state_v1(filename, step = None, with_header = False,
+                    with_time = False):
+    """Import cellular automaton state output file (version 1).
+
+    Version 1 of cellular automaton output files is deprecated. This function is
+        kept so it is still possible to read old output files.
+
+    Args:
+        filename (str): Name of the output file to import.
+        step (int, optional): Time step to import (-1 for last time step).
+            Default to None (all time steps are imported).
+        with_header: Return only cellular automaton state if False. Also return
+            header information if True.
+
+    Todo:
+        Move to np.uint8 data type in file. File version system will be
+            needed to keep possibility to open old files.
+
+    """
+    # Open file.
+    file = open(filename, 'rb')
+
+    # Read header.
+    x0 = np.fromfile(file, dtype = float, count = 1)[0]
+    y0 = np.fromfile(file, dtype = float, count = 1)[0]
+    nx = np.fromfile(file, dtype = int, count = 1)[0]
+    ny = np.fromfile(file, dtype = int, count = 1)[0]
+    dx = np.fromfile(file, dtype = float, count = 1)[0]
+    nt = np.fromfile(file, dtype = int, count = 1)[0]
+
+    # Read times.
+    times = list(np.fromfile(file, dtype = float, count = nt))
+
+    # Import all time steps.
+    if step is None:
+        state = np.fromfile(file, dtype = np.int8, count = nt * nx * ny)
+        state = state.reshape((nt, nx, ny)).astype(int)
+
+    # Import last time step.
+    elif step == -1:
+        times = [times[-1]]
+        # Skip preceding time steps.
+        file.seek(nx * ny * (nt - 1), 1)
+        # Read data.
+        state = np.fromfile(file, dtype = np.int8, count = nx * ny)
+        state = state.reshape((1, nx, ny)).astype(int)
+
+    # Import specific time step.
+    else:
+        times = times[step]
+        # Skip preceding time steps.
+        file.seek(nx * ny * step, 1)
+        # Read data.
+        state = np.fromfile(file, dtype = np.int8, count = nx * ny)
+        state = state.reshape((1, nx, ny)).astype(int)
+
+    # Close file.
+    file.close()
+
+    if with_header and with_time:
+        return (x0, y0, nx, ny, dx, nt), times, state
+    if with_header and not with_time:
+        return (x0, y0, nx, ny, dx, nt), state
+    if not with_header and with_time:
+        return times, state
+    if not with_header and not with_time:
+        return state
