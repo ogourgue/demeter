@@ -239,7 +239,7 @@ class CellularAutomaton(object):
 
     ############################################################################
     def run(self, nt, nproc = 1, launcher = 'mpiexec'):
-        """Run cellular automaton and update state.
+        """Run cellular automaton and update state (and age, if computed).
 
         Args:
             nt (int): Number of iterations.
