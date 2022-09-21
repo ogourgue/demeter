@@ -89,7 +89,7 @@ class CellularAutomaton(object):
 
         """
         # Import file.
-        data, times, state = import_state_v1(filename, step, True, True)
+        data, times, state = import_state(filename, step, True, True)
         x0 = data[0]
         y0 = data[1]
         nx = data[2]
@@ -148,7 +148,7 @@ class CellularAutomaton(object):
         state = self.state[steps, :, :]
 
         # Export file.
-        export_state_v1(filename, x0, y0, nx, ny, dx, times, state)
+        export_state(filename, x0, y0, nx, ny, dx, times, state)
 
     ############################################################################
     def append_times(self, time):
@@ -346,11 +346,8 @@ def number_iterations(r_exp, dx, n = 2):
     return nt
 
 ################################################################################
-def export_state_v1(filename, x0, y0, nx, ny, dx, times, state):
-    """Export cellular automaton state output file (version 1).
-
-    Version 1 of cellular automaton output files is deprecated. This function is
-        kept so it is still possible to read old output files.
+def export_state(filename, x0, y0, nx, ny, dx, times, state):
+    """Export cellular automaton state output file.
 
     Args:
         filename (str): Name of the file to export.
@@ -360,11 +357,6 @@ def export_state_v1(filename, x0, y0, nx, ny, dx, times, state):
         ny (int): Number of grid cells along y-axis.
         dx (float): Grid cell length.
         times (NumPy array): Time steps (s).
-
-    Todo:
-        Move to np.uint8 data type in file and add a version string int he
-            header. Once this is done, there will be no possibility to
-            export the old way.
 
     """
     # Open file.
@@ -389,12 +381,8 @@ def export_state_v1(filename, x0, y0, nx, ny, dx, times, state):
     file.close()
 
 ################################################################################
-def import_state_v1(filename, step = None, with_header = False,
-                    with_time = False):
-    """Import cellular automaton state output file (version 1).
-
-    Version 1 of cellular automaton output files is deprecated. This function is
-        kept so it is still possible to read old output files.
+def import_state(filename, step = None, with_header = False, with_time = False):
+    """Import cellular automaton state output file.
 
     Args:
         filename (str): Name of the output file to import.
@@ -402,10 +390,6 @@ def import_state_v1(filename, step = None, with_header = False,
             Default to None (all time steps are imported).
         with_header: Return only cellular automaton state if False. Also return
             header information if True.
-
-    Todo:
-        Move to np.uint8 data type in file. File version system will be
-            needed to keep possibility to open old files.
 
     """
     # Open file.
