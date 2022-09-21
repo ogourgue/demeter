@@ -308,12 +308,12 @@ class CellularAutomaton(object):
 
         # Update cellular automaton age.
         if self.age is not None:
-            age_1 = self.age[-1, :, :]
-            age_1[state_1 > 0] += 1
+            age = self.age[-1, :, :]
+            age[state_1 > 0] += 1
 
         # Append new cellular automator age.
         if self.age is not None:
-            self.append_age(age_1)
+            self.append_age(age)
 
     ############################################################################
     def remove_time_step(self, step = 0):
