@@ -21,7 +21,7 @@ class CellularAutomaton(object):
             nx (int): Number of grid cells along x-axis.
             ny (int): Number of grid cells along y-axis.
             dx (float): Grid cell length.
-            times (NumPy array, optional): Time steps (s). Default to None (no
+            times (NumPy array, optional): Time steps (yr). Default to None (no
                 time step).
             state (NumPy array): Cellular automaton state for each time step.
                 Default to None (no time step).
@@ -354,7 +354,7 @@ def export_state(filename, x0, y0, nx, ny, dx, times, state):
         nx (int): Number of grid cells along x-axis.
         ny (int): Number of grid cells along y-axis.
         dx (float): Grid cell length.
-        times (NumPy array): Time steps (s).
+        times (NumPy array): Time steps (yr).
 
     """
     # Open file.
