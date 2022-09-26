@@ -1,3 +1,5 @@
+import shutil
+
 import numpy as np
 
 from demeter import ca2tel
@@ -108,3 +110,6 @@ age = ca2tel.voronoi_age(X, Y, STATE, AGE, x, y, tri, nproc = 4)
 # Tests.
 assert np.array_equal(cov, np.load('test_ca2tel_cov.npy'))
 assert np.array_equal(age, np.load('test_ca2tel_age.npy'))
+
+# Delete intermediate files.
+shutil.rmtree('./tmp_ca2tel')

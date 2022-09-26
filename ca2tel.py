@@ -98,5 +98,46 @@ def voronoi_age(X, Y, STATE, AGE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
         from demeter import ca2tel_voronoi_age
         age = ca2tel_voronoi_age.voronoi_age(X, Y, STATE, AGE, x, y, tri)
 
+    else:
+
+        #################
+        # Parallel mode #
+        #################
+
+        # Create directory to store intermediate input files.
+        if not os.path.isdir('./tmp_ca2tel'):
+            os.mkdir('./tmp_ca2tel')
+
+        # Intermediate file names.
+        X_global_fn = './tmp_ca2tel/ca_x_global.txt'
+        Y_global_fn = './tmp_ca2tel/ca_y_global.txt'
+        STATE_global_fn = './tmp_ca2tel/state_global.txt'
+        AGE_global_fn = './tmp_ca2tel/ca_age_global.txt'
+        x_global_fn = './tmp_ca2tel/tel_x_global.txt'
+        y_global_fn = './tmp_ca2tel/tel_y_global.txt'
+        tri_global_fn = './tmp_ca2tel/tri_global.txt'
+        age_global_fn = './tmp_ca2tel/tel_age_global.txt'
+
+        # Save intermediate files.
+        if not os.path.isfile(X_global_fn):
+            np.savetxt(X_global_fn, X)
+        if not os.path.isfile(Y_global_fn):
+            np.savetxt(Y_global_fn, Y)
+        np.savetxt(STATE_global_fn, STATE, fmt = '%d')
+        np.savetxt(AGE_global_fn, AGE, fmt = '%d')
+        if not os.path.isfile(x_global_fn):
+            np.savetxt(x_global_fn, x)
+        if not os.path.isfile(y_global_fn):
+            np.savetxt(y_global_fn, y)
+        if not os.path.isfile(tri_global_fn):
+            np.savetxt(tri_global_fn, tri, fmt = '%d')
+
+        # Run Cellular Automaton to Telemac voronoi coverage.
+        os.system(launcher + ' -n %d python $DEMPATH/ca2tel_voronoi_age.py'
+                  % nproc)
+
+        # Load intermediate file.
+        age = np.loadtxt(age_global_fn)
+
     return age
 
