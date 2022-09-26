@@ -21,13 +21,14 @@ nproc = comm.Get_size()
 rank = comm.Get_rank()
 
 ################################################################################
-def voronoi_coverage(X, Y, STATE, x, y, tri):
+def voronoi_age(X, Y, STATE, AGE, x, y, tri):
     """Calculate coverage over Voronoi neighborhoods.
 
     Args:
         X (NumPy array): Cellular Automaton grid cell x-coordinates (1D).
         Y (NumPy array): Cellular Automaton grid cell y-coordinates (1D).
         STATE (numPy array): Cellular Automaton state.
+        AGE (numPy array): Cellular Automaton age.
         x (NumPy array): Telemac grid node x-coordinates.
         y (NumPy array): Telemac grid node y-coordinates.
         tri (NumPy array): Telemac grid connectivity table.
@@ -36,15 +37,15 @@ def voronoi_coverage(X, Y, STATE, x, y, tri):
     # Voronoi array.
     vor = ca2tel.voronoi(X, Y, x, y, tri)
 
-    # Coverage.
-    cov = np.zeros(x.shape)
+    # Age.
+    age = np.zeros(x.shape)
     for i in range(x.shape[0]):
         if np.sum(vor == i) == 0:
-            cov[i] = np.nan
+            age[i] = np.nan
         else:
-            cov[i] = np.mean(STATE[vor == i])
+            age[i] = np.mean(AGE[np.logical_and(vor == i, STATE > 0)])
 
-    return cov
+    return age
 
 ################################################################################
 if __name__ == '__main__':
@@ -53,10 +54,11 @@ if __name__ == '__main__':
     X_global_fn = './tmp_ca2tel/ca_x_global.txt'
     Y_global_fn = './tmp_ca2tel/ca_y_global.txt'
     STATE_global_fn = './tmp_ca2tel/state_global.txt'
+    AGE_global_fn = './tmp_ca2tel/ca_age_global.txt'
     x_global_fn = './tmp_ca2tel/tel_x_global.txt'
     y_global_fn = './tmp_ca2tel/tel_y_global.txt'
     tri_global_fn = './tmp_ca2tel/tri_global.txt'
-    cov_global_fn = './tmp_ca2tel/cov_global.txt'
+    age_global_fn = './tmp_ca2tel/tel_age_global.txt'
     bb_fn = './tmp_ca2tel/bb.txt'
     npoin_fn = './tmp_ca2tel/npoin.txt'
 
@@ -191,14 +193,16 @@ if __name__ == '__main__':
     # partitions to secondary processors.
     if rank == 0:
 
-        # Load global input variable.
+        # Load global input variables.
         STATE = np.loadtxt(STATE_global_fn, dtype = int)
+        AGE = np.loadtxt(AGE_global_fn, dtype = int)
 
         # Load bounding box file.
         bb = np.loadtxt(bb_fn, dtype = int)
 
-        # Input variable for each partition.
+        # Input variables for each partition.
         STATE_list = []
+        AGE_list = []
         for i in range(nproc):
             imin = bb[i, 0]
             imax = bb[i, 1]
@@ -206,9 +210,12 @@ if __name__ == '__main__':
             jmax = bb[i, 3]
             STATE_list.append(np.ascontiguousarray(STATE[imin:imax + 1,
                                                          jmin:jmax + 1]))
+            AGE_list.append(np.ascontiguousarray(AGE[imin:imax + 1,
+                                                     jmin:jmax + 1]))
 
         # Primary processor partition.
         STATE_loc = STATE_list[0]
+        AGE_loc = AGE_list[0]
 
         # Send partitions to secondary processors.
         for i in range(1, nproc):
@@ -217,6 +224,7 @@ if __name__ == '__main__':
             comm.send(nx_loc, dest = i, tag = 600)
             comm.send(ny_loc, dest = i, tag = 601)
             comm.Send([STATE_list[i], MPI.INT], dest = i, tag = 602)
+            comm.Send([AGE_list[i], MPI.INT], dest = i, tag = 603)
 
     # Secondary processors receive input variable partitions from primary
     # processor.
@@ -227,6 +235,8 @@ if __name__ == '__main__':
         ny_loc = comm.recv(source = 0, tag = 601)
         STATE_loc = np.empty((nx_loc, ny_loc), dtype = int)
         comm.Recv([STATE_loc, MPI.INT], source = 0, tag = 602)
+        AGE_loc = np.empty((nx_loc, ny_loc), dtype = int)
+        comm.Recv([AGE_loc, MPI.INT], source = 0, tag = 603)
 
     # Local intermediate file names.
     X_local_fn = './tmp_ca2tel/ca_x_local_%d.txt' % rank
@@ -242,35 +252,36 @@ if __name__ == '__main__':
     y_loc = np.loadtxt(y_local_fn)
     tri_loc = np.loadtxt(tri_local_fn, dtype = int)
 
-    # Voronoi coverage.
-    cov_loc = voronoi_coverage(X_loc, Y_loc, STATE_loc, x_loc, y_loc, tri_loc)
+    # Voronoi age.
+    age_loc = voronoi_age(X_loc, Y_loc, STATE_loc, AGE_loc, x_loc, y_loc,
+                          tri_loc)
 
     # Secondary processors send output variable partitions to primary processor.
     if rank > 0:
 
         # Send partition to primary processor.
-        npoin_loc = cov_loc.shape[0]
-        comm.send(npoin_loc, dest = 0, tag = 603)
-        comm.Send([cov_loc, MPI.FLOAT], dest = 0, tag = 604)
+        npoin_loc = age_loc.shape[0]
+        comm.send(npoin_loc, dest = 0, tag = 604)
+        comm.Send([age_loc, MPI.FLOAT], dest = 0, tag = 605)
 
     # Primary processor receives partitions from secondary processors and
     # reconstructs output variable.
     if rank == 0:
 
         # Primary processor partition.
-        cov_list = [cov_loc]
+        age_list = [age_loc]
 
         # Receive partition from secondary processors.
         for i in range(1, nproc):
-            npoin_loc = comm.recv(source = i, tag = 603)
-            cov_list.append(np.empty(npoin_loc, dtype = float))
-            comm.Recv([cov_list[i], MPI.FLOAT], source = i, tag = 604)
+            npoin_loc = comm.recv(source = i, tag = 604)
+            age_list.append(np.empty(npoin_loc, dtype = float))
+            comm.Recv([age_list[i], MPI.FLOAT], source = i, tag = 605)
 
         # Load number of Telemac grid nodes.
         npoin = np.loadtxt(npoin_fn, dtype = int)
 
         # Reconstruction.
-        cov = np.zeros(npoin)
+        age = np.zeros(npoin)
         for i in range(nproc):
             # Load local intermediate files.
             glo2loc_local_fn = './tmp_ca2tel/glo2loc_local_%d.txt' % i
@@ -278,9 +289,9 @@ if __name__ == '__main__':
             glo2loc = np.loadtxt(glo2loc_local_fn, dtype = int)
             ext2loc = np.loadtxt(ext2loc_local_fn, dtype = int)
             # Reconstruction
-            cov[glo2loc] = cov_list[i][ext2loc]
+            age[glo2loc] = age_list[i][ext2loc]
 
         # Save intermediate file.
-        np.savetxt(cov_global_fn, cov)
+        np.savetxt(age_global_fn, age)
 
     MPI.Finalize()

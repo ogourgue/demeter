@@ -11,7 +11,8 @@ class CellularAutomaton(object):
 
     """
 
-    def __init__(self, x0, y0, nx, ny, dx, times = None, state = None):
+    def __init__(self, x0, y0, nx, ny, dx, times = None, state = None,
+                 with_age = False, age = None):
         """Create a cellular automaton instance from grid parameters.
 
         Args:
@@ -20,10 +21,14 @@ class CellularAutomaton(object):
             nx (int): Number of grid cells along x-axis.
             ny (int): Number of grid cells along y-axis.
             dx (float): Grid cell length.
-            times (NumPy array, optional): Time steps (s). Default to None (no
+            times (NumPy array, optional): Time steps (yr). Default to None (no
                 time step).
-            state (NumPy array): Cellular automaton state for each time step.
-                Default to None (no time step).
+            state (NumPy array, optional): Cellular automaton state for each
+                time step. Default to None (no time step).
+            with_age (bool, optional): True if cellular automaton age must be
+                computed. Default to False.
+            age (NumPy array, optional): Cellular automaton age for each time
+                step. Default to None (no time step).
 
         """
         # Grid parameters.
@@ -37,17 +42,26 @@ class CellularAutomaton(object):
         self.x = np.linspace(x0, x0 + (nx - 1) * dx, nx)
         self.y = np.linspace(y0, y0 + (ny - 1) * dx, ny)
 
-        # Time (empty).
+        # Time.
         if times is None:
             self.times = []
         else:
             self.times = times
 
-        # Cellular automaton state (empty).
+        # Cellular automaton state.
         if state is None:
             self.state = np.zeros((0, nx, ny), dtype = int)
         else:
             self.state = state
+
+        # Cellular automaton age.
+        if with_age:
+            if age is None:
+                self.age = np.zeros((0, nx, ny), dtype = int)
+            else:
+                self.age = age
+        else:
+            self.age = None
 
         # Probability of establishment.
         self.p_est = np.zeros((nx, ny))
@@ -60,73 +74,43 @@ class CellularAutomaton(object):
 
     ############################################################################
     @classmethod
-    def from_file(cls, filename, step = None):
+    def from_file(cls, filename, filename_age = None, step = None):
         """Create a cellular automaton instance from an output file.
 
         Args:
             filename (str): Name of the output file to import.
-            step (int): Time step to import (-1 for last time step). Default to
-            None (all time steps are imported).
+            step (int, optional): Time step to import (-1 for last time step).
+                Default to None (all time steps are imported).
+            filename_age (str, optional): Name of the age output file to import.
+                Default to None (age is not computed).
 
         """
-        # Open file.
-        file = open(filename, 'rb')
-
-        # Read header.
-        x0 = np.fromfile(file, dtype = float, count = 1)[0]
-        y0 = np.fromfile(file, dtype = float, count = 1)[0]
-        nx = np.fromfile(file, dtype = int, count = 1)[0]
-        ny = np.fromfile(file, dtype = int, count = 1)[0]
-        dx = np.fromfile(file, dtype = float, count = 1)[0]
-        nt = np.fromfile(file, dtype = int, count = 1)[0]
-
-        # Read times.
-        times = list(np.fromfile(file, dtype = float, count = nt))
-
-        # Import all time steps.
-        if step is None:
-            state = np.fromfile(file, dtype = np.int8, count = nt * nx * ny)
-            state = state.reshape((nt, nx, ny)).astype(int)
-
-        # Import last time step.
-        elif step == -1:
-            times = [times[-1]]
-            # Skip preceding time steps.
-            file.seek(nx * ny * (nt - 1), 1)
-            # Read data.
-            state = np.fromfile(file, dtype = np.int8, count = nx * ny)
-            state = state.reshape((1, nx, ny)).astype(int)
-
-        # Import specific time step.
-        else:
-            times = times[step]
-            # Skip preceding time steps.
-            file.seek(nx * ny * step, 1)
-            # Read data.
-            state = np.fromfile(file, dtype = np.int8, count = nx * ny)
-            state = state.reshape((1, nx, ny)).astype(int)
-
-        # Close file.
-        file.close()
+        # Import file.
+        data, times, state = import_state(filename, step, True, True)
+        x0 = data[0]
+        y0 = data[1]
+        nx = data[2]
+        ny = data[3]
+        dx = data[4]
 
         # Grid coordinates.
         x = np.linspace(x0, x0 + (nx - 1) * dx, nx)
         y = np.linspace(y0, y0 + (ny - 1) * dx, ny)
 
-        # Probability of establishment.
-        p_est = np.zeros((nx, ny))
+        # Import age file, if needed.
+        if filename_age is not None:
+            with_age = True
+            age = import_age(filename_age, step)
 
-        # Probability of die-back.
-        p_die = np.zeros((nx, ny))
+        else:
+            with_age = False
+            age = None
 
-        # Lateral expansion rate.
-        r_exp = np.zeros((nx, ny))
-
-        return cls(x0, y0, nx, ny, dx, times, state)
+        return cls(x0, y0, nx, ny, dx, times, state, with_age, age)
 
     ############################################################################
     def export(self, filename, step = None):
-        """Export cellular automaton output file.
+        """Export cellular automaton state output file.
 
         Args:
             filename (str): Name of the file to export.
@@ -134,32 +118,63 @@ class CellularAutomaton(object):
                 Default to None (all time steps are imported).
 
         """
-        # Lists of time steps.
+        # Class attributes.
+        x0 = self.x0
+        y0 = self.y0
+        nx = self.nx
+        ny = self.ny
+        dx = self.dx
+
+        # Time steps.
         if step is None:
             steps = list(range(len(self.times)))
         else:
             steps = [step]
 
-        # Open file.
-        file = open(filename, 'w')
-
-        # Export header.
-        np.array(self.x0, dtype = float).tofile(file)
-        np.array(self.y0, dtype = float).tofile(file)
-        np.array(self.nx, dtype = int).tofile(file)
-        np.array(self.ny, dtype = int).tofile(file)
-        np.array(self.dx, dtype = float).tofile(file)
-        np.array(len(self.times), dtype = int).tofile(file)
-
-        # Export time.
-        np.array(self.times, dtype = float).tofile(file)
-
-        # Export data per time step.
+        # Time.
+        times = []
         for step in steps:
-            np.array(self.state[step, :, :], dtype = np.int8).tofile(file)
+            times.append(self.times[step])
 
-        # Close file.
-        file.close()
+        # Cellular automaton state.
+        state = self.state[steps, :, :]
+
+        # Export file.
+        export_state(filename, x0, y0, nx, ny, dx, times, state)
+
+    ############################################################################
+    def export_age(self, filename, step = None):
+        """Export cellular automaton age output file.
+
+        Args:
+            filename (str): Name of the file to export.
+            step (int, optional): Time step to export (-1 for last time step).
+                Default to None (all time steps are imported).
+
+        """
+        # Class attributes.
+        x0 = self.x0
+        y0 = self.y0
+        nx = self.nx
+        ny = self.ny
+        dx = self.dx
+
+        # Time steps.
+        if step is None:
+            steps = list(range(len(self.times)))
+        else:
+            steps = [step]
+
+        # Time.
+        times = []
+        for step in steps:
+            times.append(self.times[step])
+
+        # Cellular automaton age.
+        age = self.age[steps, :, :]
+
+        # Export file.
+        export_age(filename, x0, y0, nx, ny, dx, times, age)
 
     ############################################################################
     def append_times(self, time):
@@ -186,6 +201,20 @@ class CellularAutomaton(object):
         self.state = np.append(self.state, state, axis = 0)
 
     ############################################################################
+    def append_age(self, age):
+        """Append cellular automaton age.
+
+        Args:
+            age (NumPy array): Cellular automaton age to append.
+
+        """
+        # Reshape array to append.
+        age = age.reshape((1, self.nx, self.ny))
+
+        # Append age.
+        self.age = np.append(self.age, age, axis = 0)
+
+    ############################################################################
     def update_probabilities(self, p_est, p_die, r_exp):
         """Update cellular automaton probabilities.
 
@@ -210,7 +239,7 @@ class CellularAutomaton(object):
 
     ############################################################################
     def run(self, nt, nproc = 1, launcher = 'mpiexec'):
-        """Run cellular automaton and update state.
+        """Run cellular automaton and update state (and age, if computed).
 
         Args:
             nt (int): Number of iterations.
@@ -269,13 +298,22 @@ class CellularAutomaton(object):
                       '$DEMPATH/cellular_automaton_run.py %d %d' % (nt, seed))
 
             # Load intermediate file.
-            state_1 = np.loadtxt(state_1_global_fn)
+            state_1 = np.loadtxt(state_1_global_fn, dtype = int)
 
             # Delete intermediate directory.
             shutil.rmtree('./tmp_cellular_automaton')
 
         # Append new cellular automaton state.
         self.append_state(state_1)
+
+        # Update cellular automaton age.
+        if self.age is not None:
+            age = self.age[-1, :, :]
+            age[state_1 > 0] += 1
+
+        # Append new cellular automator age.
+        if self.age is not None:
+            self.append_age(age)
 
     ############################################################################
     def remove_time_step(self, step = 0):
@@ -288,14 +326,18 @@ class CellularAutomaton(object):
         # Class attributes.
         times = self.times
         state = self.state
+        age = self.age
 
         # Remove time step.
         times = times[:step] + times[step + 1:]
         state = np.concatenate((state[:step, :], state[step + 1:, :]), axis = 0)
+        if age is not None:
+            age = np.concatenate((age[:step, :], age[step + 1:, :]), axis = 0)
 
         # Update class attributes.
         self.times = times
         self.state = state
+        self.age = age
 
 ################################################################################
 def number_iterations(r_exp, dx, n = 2):
@@ -331,3 +373,199 @@ def number_iterations(r_exp, dx, n = 2):
         r_max = nt * dx
 
     return nt
+
+################################################################################
+def export_state(filename, x0, y0, nx, ny, dx, times, state):
+    """Export cellular automaton state output file.
+
+    Args:
+        filename (str): Name of the file to export.
+        x0 (float): x-coordinate of the center of the lower-left grid cell.
+        y0 (float): y-coordinate of the center of the lower-left grid cell.
+        nx (int): Number of grid cells along x-axis.
+        ny (int): Number of grid cells along y-axis.
+        dx (float): Grid cell length.
+        times (NumPy array): Time steps (yr).
+        state (NumPy array): Cellular automaton state.
+
+    """
+    # Open file.
+    file = open(filename, 'w')
+
+    # Export header.
+    np.array(x0, dtype = float).tofile(file)
+    np.array(y0, dtype = float).tofile(file)
+    np.array(nx, dtype = int).tofile(file)
+    np.array(ny, dtype = int).tofile(file)
+    np.array(dx, dtype = float).tofile(file)
+    np.array(len(times), dtype = int).tofile(file)
+
+    # Export time.
+    np.array(times, dtype = float).tofile(file)
+
+    # Export data per time step.
+    for i in range(len(times)):
+        np.array(state[i, :, :], dtype = np.int8).tofile(file)
+
+    # Close file.
+    file.close()
+
+################################################################################
+def import_state(filename, step = None, with_header = False, with_time = False):
+    """Import cellular automaton state output file.
+
+    Args:
+        filename (str): Name of the output file to import.
+        step (int, optional): Time step to import (-1 for last time step).
+            Default to None (all time steps are imported).
+        with_header (bool, optional): Return header information if True. Default
+            to False.
+        with_header (bool, optional): Return time if True. Default to False.
+
+    """
+    # Open file.
+    file = open(filename, 'rb')
+
+    # Read header.
+    x0 = np.fromfile(file, dtype = float, count = 1)[0]
+    y0 = np.fromfile(file, dtype = float, count = 1)[0]
+    nx = np.fromfile(file, dtype = int, count = 1)[0]
+    ny = np.fromfile(file, dtype = int, count = 1)[0]
+    dx = np.fromfile(file, dtype = float, count = 1)[0]
+    nt = np.fromfile(file, dtype = int, count = 1)[0]
+
+    # Read times.
+    times = list(np.fromfile(file, dtype = float, count = nt))
+
+    # Import all time steps.
+    if step is None:
+        state = np.fromfile(file, dtype = np.int8, count = nt * nx * ny)
+        state = state.reshape((nt, nx, ny)).astype(int)
+
+    # Import last time step.
+    elif step == -1:
+        times = [times[-1]]
+        # Skip preceding time steps.
+        file.seek(nx * ny * (nt - 1), 1)
+        # Read data.
+        state = np.fromfile(file, dtype = np.int8, count = nx * ny)
+        state = state.reshape((1, nx, ny)).astype(int)
+
+    # Import specific time step.
+    else:
+        times = times[step]
+        # Skip preceding time steps.
+        file.seek(nx * ny * step, 1)
+        # Read data.
+        state = np.fromfile(file, dtype = np.int8, count = nx * ny)
+        state = state.reshape((1, nx, ny)).astype(int)
+
+    # Close file.
+    file.close()
+
+    if with_header and with_time:
+        return (x0, y0, nx, ny, dx, nt), times, state
+    if with_header and not with_time:
+        return (x0, y0, nx, ny, dx, nt), state
+    if not with_header and with_time:
+        return times, state
+    if not with_header and not with_time:
+        return state
+
+################################################################################
+def export_age(filename, x0, y0, nx, ny, dx, times, age):
+    """Export cellular automaton age output file.
+
+    Args:
+        filename (str): Name of the file to export.
+        x0 (float): x-coordinate of the center of the lower-left grid cell.
+        y0 (float): y-coordinate of the center of the lower-left grid cell.
+        nx (int): Number of grid cells along x-axis.
+        ny (int): Number of grid cells along y-axis.
+        dx (float): Grid cell length.
+        times (NumPy array): Time steps (yr).
+        age (NumPy array): Cellular automaton age (yr).
+
+    """
+    # Open file.
+    file = open(filename, 'w')
+
+    # Export header.
+    np.array(x0, dtype = float).tofile(file)
+    np.array(y0, dtype = float).tofile(file)
+    np.array(nx, dtype = int).tofile(file)
+    np.array(ny, dtype = int).tofile(file)
+    np.array(dx, dtype = float).tofile(file)
+    np.array(len(times), dtype = int).tofile(file)
+
+    # Export time.
+    np.array(times, dtype = float).tofile(file)
+
+    # Export data per time step.
+    for i in range(len(times)):
+        np.array(age[i, :, :], dtype = np.uint16).tofile(file)
+
+    # Close file.
+    file.close()
+
+################################################################################
+def import_age(filename, step = None, with_header = False, with_time = False):
+    """Import cellular automaton age output file.
+
+    Args:
+        filename (str): Name of the output file to import.
+        step (int, optional): Time step to import (-1 for last time step).
+            Default to None (all time steps are imported).
+        with_header (bool, optional): Return header information if True. Default
+            to False.
+        with_header (bool, optional): Return time if True. Default to False.
+
+    """
+    # Open file.
+    file = open(filename, 'rb')
+
+    # Read header.
+    x0 = np.fromfile(file, dtype = float, count = 1)[0]
+    y0 = np.fromfile(file, dtype = float, count = 1)[0]
+    nx = np.fromfile(file, dtype = int, count = 1)[0]
+    ny = np.fromfile(file, dtype = int, count = 1)[0]
+    dx = np.fromfile(file, dtype = float, count = 1)[0]
+    nt = np.fromfile(file, dtype = int, count = 1)[0]
+
+    # Read times.
+    times = list(np.fromfile(file, dtype = float, count = nt))
+
+    # Import all time steps.
+    if step is None:
+        age = np.fromfile(file, dtype = np.uint16, count = nt * nx * ny)
+        age = age.reshape((nt, nx, ny)).astype(int)
+
+    # Import last time step.
+    elif step == -1:
+        times = [times[-1]]
+        # Skip preceding time steps.
+        file.seek(nx * ny * (nt - 1) * 2, 1)
+        # Read data.
+        age = np.fromfile(file, dtype = np.uint16, count = nx * ny)
+        age = age.reshape((1, nx, ny)).astype(int)
+
+    # Import specific time step.
+    else:
+        times = times[step]
+        # Skip preceding time steps.
+        file.seek(nx * ny * step * 2, 1)
+        # Read data.
+        age = np.fromfile(file, dtype = np.uint16, count = nx * ny)
+        age = age.reshape((1, nx, ny)).astype(int)
+
+    # Close file.
+    file.close()
+
+    if with_header and with_time:
+        return (x0, y0, nx, ny, dx, nt), times, age
+    if with_header and not with_time:
+        return (x0, y0, nx, ny, dx, nt), age
+    if not with_header and with_time:
+        return times, age
+    if not with_header and not with_time:
+        return age
