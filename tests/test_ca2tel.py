@@ -51,7 +51,6 @@ p_die = .1
 r_exp = 1
 nt = 10
 
-
 # Append initial time and state.
 ca.append_times(0)
 ca.append_state(np.zeros((nx, ny), dtype = int))
@@ -69,9 +68,9 @@ for i in range(nt):
     ca.append_times(i + 1)
 
 
-##################################
-# Cellular automaton to Telemac. #
-##################################
+###########################################
+# Cellular automaton to Telemac (serial). #
+###########################################
 
 # Final cellular automaton state and age.
 STATE = ca.state[-1, :, :]
@@ -86,6 +85,25 @@ age = ca2tel.voronoi_age(X, Y, STATE, AGE, x, y, tri)
 """# Save.
 np.save('test_ca2tel_cov.npy', cov)
 np.save('test_ca2tel_age.npy', age)"""
+
+# Tests.
+assert np.array_equal(cov, np.load('test_ca2tel_cov.npy'))
+assert np.array_equal(age, np.load('test_ca2tel_age.npy'))
+
+
+#############################################
+# Cellular automaton to Telemac (parallel). #
+#############################################
+
+# Final cellular automaton state and age.
+STATE = ca.state[-1, :, :]
+AGE = ca.age[-1, :, :]
+
+# Coverage.
+cov = ca2tel.voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 4)
+
+# Age.
+age = ca2tel.voronoi_age(X, Y, STATE, AGE, x, y, tri, nproc = 4)
 
 # Tests.
 assert np.array_equal(cov, np.load('test_ca2tel_cov.npy'))
