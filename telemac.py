@@ -637,7 +637,7 @@ class Telemac(object):
             self.jb = np.zeros(self.jb.shape)
         elif vname == 'coverage':
             self.cov = np.zeros(self.cov.shape)
-        elif vname = 'age':
+        elif vname == 'age':
             self.age = np.zeros(self.age.shape)
 
     ############################################################################
