@@ -124,11 +124,11 @@ def voronoi(X, Y, x, y, tri):
 if __name__ == '__main__':
 
     # Global intermediate file names.
-    X_global_fn = './tmp_ca2tel/X_global.txt'
-    Y_global_fn = './tmp_ca2tel/Y_global.txt'
-    STATE_global_fn = './tmp_ca2tel/STATE_global.txt'
-    x_global_fn = './tmp_ca2tel/x_global.txt'
-    y_global_fn = './tmp_ca2tel/y_global.txt'
+    X_global_fn = './tmp_ca2tel/ca_x_global.txt'
+    Y_global_fn = './tmp_ca2tel/ca_y_global.txt'
+    STATE_global_fn = './tmp_ca2tel/state_global.txt'
+    x_global_fn = './tmp_ca2tel/tel_x_global.txt'
+    y_global_fn = './tmp_ca2tel/tel_y_global.txt'
     tri_global_fn = './tmp_ca2tel/tri_global.txt'
     cov_global_fn = './tmp_ca2tel/cov_global.txt'
     bb_fn = './tmp_ca2tel/bb.txt'
@@ -240,10 +240,10 @@ if __name__ == '__main__':
         for i in range(nproc):
 
             # Local intermediate file names.
-            X_local_fn = './tmp_ca2tel/X_local_%d.txt' % i
-            Y_local_fn = './tmp_ca2tel/Y_local_%d.txt' % i
-            x_local_fn = './tmp_ca2tel/x_local_%d.txt' % i
-            y_local_fn = './tmp_ca2tel/y_local_%d.txt' % i
+            X_local_fn = './tmp_ca2tel/ca_x_local_%d.txt' % i
+            Y_local_fn = './tmp_ca2tel/ca_y_local_%d.txt' % i
+            x_local_fn = './tmp_ca2tel/tel_x_local_%d.txt' % i
+            y_local_fn = './tmp_ca2tel/tel_y_local_%d.txt' % i
             tri_local_fn = './tmp_ca2tel/tri_local_%d.txt' % i
             glo2loc_local_fn = './tmp_ca2tel/glo2loc_local_%d.txt' % i
             ext2loc_local_fn = './tmp_ca2tel/ext2loc_local_%d.txt' % i
@@ -303,10 +303,10 @@ if __name__ == '__main__':
         comm.Recv([STATE_loc, MPI.INT], source = 0, tag = 602)
 
     # Local intermediate file names.
-    X_local_fn = './tmp_ca2tel/X_local_%d.txt' % rank
-    Y_local_fn = './tmp_ca2tel/Y_local_%d.txt' % rank
-    x_local_fn = './tmp_ca2tel/x_local_%d.txt' % rank
-    y_local_fn = './tmp_ca2tel/y_local_%d.txt' % rank
+    X_local_fn = './tmp_ca2tel/ca_x_local_%d.txt' % rank
+    Y_local_fn = './tmp_ca2tel/ca_y_local_%d.txt' % rank
+    x_local_fn = './tmp_ca2tel/tel_x_local_%d.txt' % rank
+    y_local_fn = './tmp_ca2tel/tel_y_local_%d.txt' % rank
     tri_local_fn = './tmp_ca2tel/tri_local_%d.txt' % rank
 
     # Load local mesh partition.

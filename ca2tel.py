@@ -42,11 +42,11 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
             os.mkdir('./tmp_ca2tel')
 
         # Intermediate file names.
-        X_global_fn = './tmp_ca2tel/X_global.txt'
-        Y_global_fn = './tmp_ca2tel/Y_global.txt'
-        STATE_global_fn = './tmp_ca2tel/STATE_global.txt'
-        x_global_fn = './tmp_ca2tel/x_global.txt'
-        y_global_fn = './tmp_ca2tel/y_global.txt'
+        X_global_fn = './tmp_ca2tel/ca_x_global.txt'
+        Y_global_fn = './tmp_ca2tel/ca_y_global.txt'
+        STATE_global_fn = './tmp_ca2tel/state_global.txt'
+        x_global_fn = './tmp_ca2tel/tel_x_global.txt'
+        y_global_fn = './tmp_ca2tel/tel_y_global.txt'
         tri_global_fn = './tmp_ca2tel/tri_global.txt'
         cov_global_fn = './tmp_ca2tel/cov_global.txt'
 
