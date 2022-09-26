@@ -298,7 +298,7 @@ class CellularAutomaton(object):
                       '$DEMPATH/cellular_automaton_run.py %d %d' % (nt, seed))
 
             # Load intermediate file.
-            state_1 = np.loadtxt(state_1_global_fn)
+            state_1 = np.loadtxt(state_1_global_fn, dtype = int)
 
             # Delete intermediate directory.
             shutil.rmtree('./tmp_cellular_automaton')
