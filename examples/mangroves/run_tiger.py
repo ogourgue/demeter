@@ -21,10 +21,10 @@ from demeter import telemac
 np.random.seed(0)
 
 # Number of years.
-NYEAR = 100
+NYEAR = 5
 
 # Number of processors.
-NPROC = 1
+NPROC = int(sys.argv[1])
 
 ###################################
 # Telemac (hydro-morphodynamics). #
@@ -47,7 +47,7 @@ NR = TR / 10
 RHO = 500
 
 # Soil diffusivity.
-NU = 1
+NU = 100
 
 # Relative time step for diffusion.
 NU_DT = 1
@@ -66,10 +66,10 @@ TAUC = .3
 ############################################
 
 # Grid cell size.
-DX = .5
+DX = 5
 
 # Background probability of establishment.
-P = 1e-4
+P = 1e-2
 
 # Background probability of die-back.
 Q = 1
@@ -128,6 +128,7 @@ m = ((b - r) * RHO).reshape((1, 1, 1, tel.npoin))
 th = np.zeros((1, tel.npoin))
 jb = np.zeros((1, tel.npoin))
 cov = np.zeros((1, tel.npoin))
+age = np.zeros((1, tel.npoin))
 
 # Add times, variables and parameters to the Telemac instance.
 tel.add_times([0])
@@ -142,6 +143,7 @@ tel.add_variable(m, 'mass mud')
 tel.add_variable(th, 'hydroperiod')
 tel.add_variable(jb, 'exceeding bottom shear impulse')
 tel.add_variable(cov, 'coverage')
+tel.add_variable(age, 'age')
 
 # Create directory to store intermediate output files.
 if os.path.isdir('./tmp'):
@@ -150,7 +152,7 @@ os.mkdir('./tmp')
 
 # Initialize Telemac output instance.
 tel.export('./tmp.slf', step = -1)
-vnames = ['bottom', 'hydroperiod', 'ebs impulse', 'coverage']
+vnames = ['bottom', 'hydroperiod', 'ebs impulse', 'coverage', 'age']
 tel_out = telemac.Telemac('./tmp.slf', vnames = vnames)
 
 #######################
@@ -164,16 +166,19 @@ nx = int((np.max(tel.x) - np.min(tel.x)) / DX)
 ny = int((np.max(tel.y) - np.min(tel.y)) / DX)
 
 # Create cellular automaton.
-ca = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX)
+ca = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX, with_age = True)
 
 # Append initial time and state.
 ca.append_times(0)
 ca.append_state(np.zeros((nx, ny)))
+ca.append_age(np.zeros((nx, ny)))
 
 # Initialize Cellular Automaton output instance.
-ca_out = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX)
+ca_out = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX,
+                                              with_age = True)
 ca_out.append_times(ca.times[0])
 ca_out.append_state(ca.state[0, :, :])
+ca_out.append_age(ca.age[0, :, :])
 
 ################################################################################
 ################################################################################
@@ -281,16 +286,16 @@ for year in range(NYEAR):
     ca.run(ca_nt, nproc = NPROC)
 
     # Append time.
-    # ca.append_times(tel.times[-1])
-    ca.append_times((year + 1) * 365 * 24 * 60 * 60)
+    ca.append_times(year + 1)
 
     # Remove previous time step.
     ca.remove_time_step()
 
-    # Append times and state to the Cellular Automaton output instance.
+    # Append times, state and age to the Cellular Automaton output instance.
     if (year + 1) % CA_NYEAR == 0:
         ca_out.append_times(ca.times[-1])
         ca_out.append_state(ca.state[-1, :, :])
+        ca_out.append_age(ca.age[-1, :, :])
 
     ##################################
     # Cellular automaton to Telemac. #
@@ -298,11 +303,19 @@ for year in range(NYEAR):
 
     # Coverage.
     cov = ca2tel.voronoi_coverage(ca.x, ca.y, ca.state[-1, :, :], tel.x, tel.y,
-                                  tel.tri, nproc = NPROC).reshape((1, -1))
+                                  tel.tri, nproc = NPROC)
+    cov = cov.reshape((1, -1))
 
-    # Append coverage to the Telemac and Telemac output instances.
+    # Age.
+    age = ca2tel.voronoi_age(ca.x, ca.y, ca.state[-1, :, :], ca.age[-1, :, :],
+                             tel.x, tel.y, tel.tri, nproc = NPROC)
+    age = age.reshape((1, -1))
+
+    # Append variables to the Telemac and Telemac output instances.
     tel.append_variable(cov, 'coverage')
+    tel.append_variable(age, 'age')
     tel_out.append_variable(cov, 'coverage')
+    tel_out.append_variable(age, 'age')
 
 ################################################################################
 ################################################################################

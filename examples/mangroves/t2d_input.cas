@@ -23,10 +23,10 @@ VARIABLES FOR GRAPHIC PRINTOUTS         = U,V,S,B,T1
 // TIME //
 //////////
 
-TIME STEP                               = 20
-LISTING PRINTOUT PERIOD                 = 2235
-GRAPHIC PRINTOUT PERIOD                 = 2235
-NUMBER OF TIME STEPS                    = 2235
+TIME STEP                               = 50
+LISTING PRINTOUT PERIOD                 = 894
+GRAPHIC PRINTOUT PERIOD                 = 894
+NUMBER OF TIME STEPS                    = 894
 
 
 /////////////////////////
@@ -45,8 +45,8 @@ PRESCRIBED TRACERS VALUES               = .05
 LAW OF BOTTOM FRICTION                  = 2
 FRICTION COEFFICIENT                    = 50
 TURBULENCE MODEL                        = 1
-VELOCITY DIFFUSIVITY                    = 1
-COEFFICIENT FOR DIFFUSION OF TRACERS    = 1
+VELOCITY DIFFUSIVITY                    = 100
+COEFFICIENT FOR DIFFUSION OF TRACERS    = 100
 
 VERTICAL STRUCTURES                     = YES
 

@@ -1,0 +1,33 @@
+///////////
+// INPUT //
+///////////
+
+GEOMETRY FILE                           = TIGER_2km_50m.slf
+BOUNDARY CONDITIONS FILE                = TIGER_2km_50m.cli
+FORTRAN FILE                            = user_gai
+COMPUTATION CONTINUED                   = YES
+PREVIOUS SEDIMENTOLOGICAL COMPUTATION FILE = tmp.slf
+
+
+////////////
+// OUTPUT //
+////////////
+
+RESULTS FILE                            = out_gai.slf
+VARIABLES FOR GRAPHIC PRINTOUTS         = R,1M1
+
+
+////////////////////////
+// SEDIMENT PROCESSES //
+////////////////////////
+
+CLASSES TYPE OF SEDIMENT                = CO
+
+LAYERS MUD CONCENTRATION                = 500
+LAYERS CRITICAL EROSION SHEAR STRESS OF THE MUD = .3
+LAYERS PARTHENIADES CONSTANT            = 1E-4
+CLASSES SETTLING VELOCITIES             = 1E-4
+
+MORPHOLOGICAL FACTOR ON BED EVOLUTION   = 705.99
+
+SKIN FRICTION CORRECTION                = 0
