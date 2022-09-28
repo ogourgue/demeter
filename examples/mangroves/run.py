@@ -331,7 +331,8 @@ os.replace('./tmp/out_t2d_%03d_%02d.slf' % (NYEAR - 1, N - 1), './last_t2d.slf')
 os.replace('./tmp/out_gai_%03d_%02d.slf' % (NYEAR - 1, N - 1), './last_gai.slf')
 
 # Export Cellular Automaton results.
-ca_out.export('out_ca.bin')
+ca_out.export('out_ca_state.bin')
+ca_out.export_age('out_ca_age.bin')
 
 # Remove last initial condition file.
 os.remove('./tmp.slf')

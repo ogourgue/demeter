@@ -34,9 +34,9 @@ x = tel.x
 y = tel.y
 tri = tel.ikle - 1
 b = tel.b
-th = tel.th / (N * (12 * 60 + 25) * 60)
-jb = tel.jb / (N * (12 * 60 + 25) * 60 * TAUC)
-cov = tel.cov
+th = tel.th / (N * (12 * 60 + 25) * 60) * 100
+jb = tel.jb / (N * (12 * 60 + 25) * 60 * TAUC) * 100
+cov = tel.cov * 100
 
 # Figures.
 for i in range(0, b.shape[0], DT):
@@ -56,14 +56,14 @@ for i in range(0, b.shape[0], DT):
 
 for i in range(DT, th.shape[0], DT):
     plt.figure()
-    plt.tripcolor(x, y, tri, th[i, :], vmin = 0, vmax = 1)
+    plt.tripcolor(x, y, tri, th[i, :], vmin = 0, vmax = 100)
     plt.axvline(x = -1000, color = 'k', linestyle = '--')
     plt.axvline(x = 0, color = 'k', linestyle = '--')
     plt.axis('scaled')
     plt.axis([np.min(x), np.max(x), np.min(y), np.max(y)])
     plt.xticks([])
     plt.yticks([])
-    plt.colorbar(orientation = 'horizontal', label = 'Hydroperiod')
+    plt.colorbar(orientation = 'horizontal', label = 'Hydroperiod (%)')
     plt.title('Year %d' % i)
     plt.tight_layout()
     plt.savefig('./Figures/Hydroperiod%03d.png' % i, dpi = 600)
@@ -71,7 +71,7 @@ for i in range(DT, th.shape[0], DT):
 
 for i in range(DT, jb.shape[0], DT):
     plt.figure()
-    plt.tripcolor(x, y, tri, jb[i, :], vmin = 0, vmax = .05)
+    plt.tripcolor(x, y, tri, jb[i, :], vmin = 0, vmax = 10)
     plt.axvline(x = -1000, color = 'k', linestyle = '--')
     plt.axvline(x = 0, color = 'k', linestyle = '--')
     plt.axis('scaled')
@@ -79,22 +79,22 @@ for i in range(DT, jb.shape[0], DT):
     plt.xticks([])
     plt.yticks([])
     plt.colorbar(orientation = 'horizontal',
-                 label = 'Exceeding bottom shear impulse')
+                 label = 'Exceeding bottom shear impulse (%)')
     plt.title('Year %d' % i)
     plt.tight_layout()
     plt.savefig('./Figures/ExceddingBottomShearImpulse%03d.png' % i, dpi = 600)
     plt.close()
 
-for i in range(DT, cov.shape[0], DT):
+for i in range(0, cov.shape[0], DT):
     plt.figure()
-    plt.tripcolor(x, y, tri, cov[i, :], vmin = 0, vmax = 1, cmap = 'Greens')
+    plt.tripcolor(x, y, tri, cov[i, :], vmin = 0, vmax = 100, cmap = 'Greens')
     plt.axvline(x = -1000, color = 'k', linestyle = '--')
     plt.axvline(x = 0, color = 'k', linestyle = '--')
     plt.axis('scaled')
     plt.axis([np.min(x), np.max(x), np.min(y), np.max(y)])
     plt.xticks([])
     plt.yticks([])
-    plt.colorbar(orientation = 'horizontal', label = 'Vegetation coverage')
+    plt.colorbar(orientation = 'horizontal', label = 'Vegetation coverage (%)')
     plt.title('Year %d' % i)
     plt.tight_layout()
     plt.savefig('./Figures/Coverage%03d.png' % i, dpi = 600)
