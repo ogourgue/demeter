@@ -42,7 +42,7 @@ def voronoi_age(X, Y, STATE, AGE, x, y, tri):
     for i in range(x.shape[0]):
         if np.sum(vor == i) == 0:
             age[i] = np.nan
-        else:
+        elif np.any(np.logical_and(vor == i, STATE > 0)):
             age[i] = np.mean(AGE[np.logical_and(vor == i, STATE > 0)])
 
     return age
