@@ -1,0 +1,73 @@
+///////////
+// INPUT //
+///////////
+
+GEOMETRY FILE                           = TIGER_2km_50m.slf
+BOUNDARY CONDITIONS FILE                = TIGER_2km_50m.cli
+COUPLING WITH                           = GAIA
+GAIA STEERING FILE                      = gai_input.cas
+FORTRAN FILE                            = user_t2d
+COMPUTATION CONTINUED                   = YES
+PREVIOUS COMPUTATION FILE               = tmp.slf
+
+
+////////////
+// OUTPUT //
+////////////
+
+RESULTS FILE                            = out_t2d.slf
+VARIABLES FOR GRAPHIC PRINTOUTS         = U,V,S,B,T1
+
+
+//////////
+// TIME //
+//////////
+
+TIME STEP                               = 50
+LISTING PRINTOUT PERIOD                 = 894
+GRAPHIC PRINTOUT PERIOD                 = 894
+NUMBER OF TIME STEPS                    = 894
+
+
+/////////////////////////
+// BOUNDARY CONDITIONS //
+/////////////////////////
+
+OPTION FOR LIQUID BOUNDARIES            = 1
+PRESCRIBED ELEVATIONS                   = 0
+PRESCRIBED TRACERS VALUES               = .05
+
+
+/////////////
+// PHYSICS //
+/////////////
+
+LAW OF BOTTOM FRICTION                  = 2
+FRICTION COEFFICIENT                    = 50
+TURBULENCE MODEL                        = 1
+VELOCITY DIFFUSIVITY                    = 100
+COEFFICIENT FOR DIFFUSION OF TRACERS    = 100
+
+VERTICAL STRUCTURES                     = YES
+
+
+//////////////
+// NUMERICS //
+//////////////
+
+TREATMENT OF THE LINEAR SYSTEM          = 2
+FREE SURFACE GRADIENT COMPATIBILITY     = 1
+SOLVER                                  = 1
+
+
+/////////////////////////////////////
+// JEAN-MICHEL HERVOUET SUGGESTION //
+/////////////////////////////////////
+
+MASS-LUMPING ON H                       = 1
+TIDAL FLATS                             = YES
+OPTION FOR THE TREATMENT OF TIDAL FLATS = 1
+TREATMENT OF NEGATIVE DEPTHS            = 2
+TYPE OF ADVECTION                       = 14;5
+SUPG OPTION                             = 0;0
+CONTINUITY CORRECTION                   = YES
