@@ -304,18 +304,16 @@ for year in range(NYEAR):
     # Coverage.
     cov = ca2tel.voronoi_coverage(ca.x, ca.y, ca.state[-1, :, :], tel.x, tel.y,
                                   tel.tri, nproc = NPROC)
-    cov = cov.reshape((1, -1))
 
     # Age.
     age = ca2tel.voronoi_age(ca.x, ca.y, ca.state[-1, :, :], ca.age[-1, :, :],
                              tel.x, tel.y, tel.tri, nproc = NPROC)
-    age = age.reshape((1, -1))
 
     # Append variables to the Telemac and Telemac output instances.
-    tel.append_variable(cov, 'coverage')
-    tel.append_variable(age, 'age')
-    tel_out.append_variable(cov, 'coverage')
-    tel_out.append_variable(age, 'age')
+    tel.append_variable(cov.reshape((1, -1)), 'coverage')
+    tel.append_variable(age.reshape((1, -1)), 'age')
+    tel_out.append_variable(cov.reshape((1, -1)), 'coverage')
+    tel_out.append_variable(age.reshape((1, -1)), 'age')
 
 ################################################################################
 ################################################################################
