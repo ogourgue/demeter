@@ -98,6 +98,7 @@ if __name__ == '__main__':
     Y_global_fn = './tmp_tel2ca/Y_global.txt'
     F_global_fn = './tmp_tel2ca/F_global.txt'
     part_fn = './tmp_tel2ca/part.txt'
+    empty_fn = './tmp_tel2ca/empty.txt'
 
     # Test if mesh partitioning files are already available.
     ready = False
@@ -200,6 +201,12 @@ if __name__ == '__main__':
         # Save partition file.
         np.savetxt(part_fn, np.array([mpi_nx, mpi_ny]), fmt = '%d')
 
+        # Save empty sub-domain file.
+        empty = np.zeros(nproc, dtype = bool)
+        for i in range(nproc):
+            empty[i] = (len(x_list[i]) == 0)
+        np.savetxt(empty_fn, empty, fmt = '%d')
+
     # Primary processor decomposes input variable for each partition and sends
     # partitions to secondary processors.
     if rank == 0:
@@ -207,11 +214,17 @@ if __name__ == '__main__':
         # Load global input variable.
         f = np.loadtxt(f_global_fn)
 
+        # Load empty sub-domain file.
+        empty = np.loadtxt(empty_fn, dtype = bool)
+
         # Load local global node index files.
         glo_list = []
         for i in range(nproc):
             glo_local_fn = './tmp_tel2ca/glo_local_%d.txt' % i
-            glo_list.append(np.loadtxt(glo_local_fn, dtype = int))
+            if not empty[i]:
+                glo_list.append(np.loadtxt(glo_local_fn, dtype = int))
+            else:
+                glo_list.append(np.array([], dtype = int))
 
         # Input variable for each partition.
         f_list = []
@@ -244,9 +257,14 @@ if __name__ == '__main__':
     Y_local_fn = './tmp_tel2ca/Y_local_%d.txt' % rank
 
     # Load local mesh partition.
-    x_loc = np.loadtxt(x_local_fn)
-    y_loc = np.loadtxt(y_local_fn)
-    tri_loc = np.loadtxt(tri_local_fn, dtype = int)
+    if f_loc.shape[0] > 0:
+        x_loc = np.loadtxt(x_local_fn)
+        y_loc = np.loadtxt(y_local_fn)
+        tri_loc = np.loadtxt(tri_local_fn, dtype = int)
+    else:
+        x_loc = np.array([])
+        y_loc = np.array([])
+        tri_loc = np.array([], dtype = int)
     X_loc = np.loadtxt(X_local_fn)
     Y_loc = np.loadtxt(Y_local_fn)
 
