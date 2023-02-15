@@ -140,27 +140,34 @@ if __name__ == '__main__':
         bb = np.zeros((nproc, 4))
         for i in range(nproc):
             # Bounding box coordinates.
-            xmin = np.min(x_list[i])
-            xmax = np.max(x_list[i])
-            ymin = np.min(y_list[i])
-            ymax = np.max(y_list[i])
+            if x_list[i].shape[0] > 0:
+                xmin = np.min(x_list[i])
+                xmax = np.max(x_list[i])
+                ymin = np.min(y_list[i])
+                ymax = np.max(y_list[i])
             # Bounding box indices.
-            try:imin = int(np.argwhere(X <= xmin)[-1])
-            except:imin = 0
-            try:imax = int(np.argwhere(X >= xmax)[0])
-            except:imax = len(X) - 1
-            try:jmin = int(np.argwhere(Y <= ymin)[-1])
-            except:jmin = 0
-            try:jmax = int(np.argwhere(Y >= ymax)[0])
-            except:jmax = len(Y) - 1
+            if x_list[i].shape[0] > 0:
+                try:imin = int(np.argwhere(X <= xmin)[-1])
+                except:imin = 0
+                try:imax = int(np.argwhere(X >= xmax)[0])
+                except:imax = len(X) - 1
+                try:jmin = int(np.argwhere(Y <= ymin)[-1])
+                except:jmin = 0
+                try:jmax = int(np.argwhere(Y >= ymax)[0])
+                except:jmax = len(Y) - 1
             # Extended Cellular Automaton coordinates.
-            X_list.append(np.ascontiguousarray(X[imin:imax + 1]))
-            Y_list.append(np.ascontiguousarray(Y[jmin:jmax + 1]))
+            if x_list[i].shape[0] > 0:
+                X_list.append(np.ascontiguousarray(X[imin:imax + 1]))
+                Y_list.append(np.ascontiguousarray(Y[jmin:jmax + 1]))
+            else:
+                X_list.append(np.array([]))
+                Y_list.append(np.array([]))
             # Add bounding box indices to bounding box array.
-            bb[i, 0] = imin
-            bb[i, 1] = imax
-            bb[i, 2] = jmin
-            bb[i, 3] = jmax
+            if x_list[i].shape[0] > 0:
+                bb[i, 0] = imin
+                bb[i, 1] = imax
+                bb[i, 2] = jmin
+                bb[i, 3] = jmax
 
         # Save local intermediate files.
         for i in range(nproc):
@@ -200,12 +207,15 @@ if __name__ == '__main__':
         # Input variable for each partition.
         STATE_list = []
         for i in range(nproc):
-            imin = bb[i, 0]
-            imax = bb[i, 1]
-            jmin = bb[i, 2]
-            jmax = bb[i, 3]
-            STATE_list.append(np.ascontiguousarray(STATE[imin:imax + 1,
-                                                         jmin:jmax + 1]))
+            if np.sum(bb[i, :]) > 0:
+                imin = bb[i, 0]
+                imax = bb[i, 1]
+                jmin = bb[i, 2]
+                jmax = bb[i, 3]
+                STATE_list.append(np.ascontiguousarray(STATE[imin:imax + 1,
+                                                             jmin:jmax + 1]))
+            else:
+                STATE_list.append(np.zeros((0, 0)))
 
         # Primary processor partition.
         STATE_loc = STATE_list[0]
@@ -236,11 +246,18 @@ if __name__ == '__main__':
     tri_local_fn = './tmp_ca2tel/tri_local_%d.txt' % rank
 
     # Load local mesh partition.
-    X_loc = np.loadtxt(X_local_fn)
-    Y_loc = np.loadtxt(Y_local_fn)
-    x_loc = np.loadtxt(x_local_fn)
-    y_loc = np.loadtxt(y_local_fn)
-    tri_loc = np.loadtxt(tri_local_fn, dtype = int)
+    if STATE_loc.shape != (0, 0):
+        X_loc = np.loadtxt(X_local_fn)
+        Y_loc = np.loadtxt(Y_local_fn)
+        x_loc = np.loadtxt(x_local_fn)
+        y_loc = np.loadtxt(y_local_fn)
+        tri_loc = np.loadtxt(tri_local_fn, dtype = int)
+    else:
+        X_loc = np.array([])
+        Y_loc = np.array([])
+        x_loc = np.array([])
+        y_loc = np.array([])
+        tri_loc = np.array([], dtype = int)
 
     # Voronoi coverage.
     cov_loc = voronoi_coverage(X_loc, Y_loc, STATE_loc, x_loc, y_loc, tri_loc)
@@ -275,8 +292,12 @@ if __name__ == '__main__':
             # Load local intermediate files.
             glo2loc_local_fn = './tmp_ca2tel/glo2loc_local_%d.txt' % i
             ext2loc_local_fn = './tmp_ca2tel/ext2loc_local_%d.txt' % i
-            glo2loc = np.loadtxt(glo2loc_local_fn, dtype = int)
-            ext2loc = np.loadtxt(ext2loc_local_fn, dtype = int)
+            if cov_list[i].shape[0] > 0:
+                glo2loc = np.loadtxt(glo2loc_local_fn, dtype = int)
+                ext2loc = np.loadtxt(ext2loc_local_fn, dtype = int)
+            else:
+                glo2loc = np.array([], dtype = int)
+                ext2loc = np.array([], dtype = int)
             # Reconstruction
             cov[glo2loc] = cov_list[i][ext2loc]
 

@@ -2,10 +2,13 @@ import shutil
 
 import numpy as np
 
+from demeter import ca2tel
 from demeter import cellular_automaton
 from demeter import tel2ca
 from demeter import telemac
 
+# Random seed.
+np.random.seed(0)
 
 # Cellular automaton grid cell size.
 DX = 1
@@ -69,9 +72,21 @@ ca.update_probabilities(.5, 0, 0)
 # Run cellular automaton.
 ca.run(1, nproc = NPROC)
 
-# Test finale state.
+# Tests final state.
 state = ca.state[-1, :, :]
-assert np.mean(state[np.isnan(inside)])
+assert np.mean(state[np.isnan(inside)]) == -1
+assert np.around(np.mean(state[np.isfinite(inside)]), decimals = 6) == .491796
+
+
+##################################
+# Cellular automaton to Telemac. #
+##################################
+
+# Compute coverage on Telemac grid.
+cov = ca2tel.voronoi_coverage(ca.x, ca.y, ca.state[-1, :, :], tel.x, tel.y, tel.tri, nproc = NPROC)
+
+# Test.
+assert np.around(np.mean(cov), decimals = 6) == .493506
 
 
 #############
@@ -80,3 +95,4 @@ assert np.mean(state[np.isnan(inside)])
 
 # Delete intermediate files.
 shutil.rmtree('./tmp_tel2ca')
+shutil.rmtree('./tmp_ca2tel')
