@@ -453,7 +453,7 @@ def import_state(filename, step = None, with_header = False, with_time = False):
 
     # Import specific time step.
     else:
-        times = times[step]
+        times = [times[step]]
         # Skip preceding time steps.
         file.seek(nx * ny * step, 1)
         # Read data.
@@ -551,7 +551,7 @@ def import_age(filename, step = None, with_header = False, with_time = False):
 
     # Import specific time step.
     else:
-        times = times[step]
+        times = [times[step]]
         # Skip preceding time steps.
         file.seek(nx * ny * step * 2, 1)
         # Read data.
