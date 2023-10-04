@@ -2,9 +2,7 @@
 
 Demeter is a Python package for multiscale biogeomorphic modeling.
 
-## Pre-requisites
-
-### Python environment
+## Python environment
 
 Standard packages that must installed:
 * matplotlib
