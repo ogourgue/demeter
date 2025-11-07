@@ -41,13 +41,13 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1, launcher = 'mpiexec'):
             os.mkdir('./tmp_tel2ca')
 
         # Intermediate file names.
-        x_global_fn = './tmp_tel2ca/x_global.txt'
-        y_global_fn = './tmp_tel2ca/y_global.txt'
-        f_global_fn = './tmp_tel2ca/f_global.txt'
+        x_global_fn = './tmp_tel2ca/tel_x_global.txt'
+        y_global_fn = './tmp_tel2ca/tel_y_global.txt'
+        f_global_fn = './tmp_tel2ca/tel_f_global.txt'
         tri_global_fn = './tmp_tel2ca/tri_global.txt'
-        X_global_fn = './tmp_tel2ca/X_global.txt'
-        Y_global_fn = './tmp_tel2ca/Y_global.txt'
-        F_global_fn = './tmp_tel2ca/F_global.txt'
+        X_global_fn = './tmp_tel2ca/ca_x_global.txt'
+        Y_global_fn = './tmp_tel2ca/ca_y_global.txt'
+        F_global_fn = './tmp_tel2ca/ca_f_global.txt'
 
         # Save intermediate files.
         if not os.path.isfile(x_global_fn):

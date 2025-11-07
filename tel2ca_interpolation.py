@@ -90,13 +90,13 @@ def interpolation(x, y, f, tri, X, Y):
 if __name__ == '__main__':
 
     # Global intermediate file names.
-    x_global_fn = './tmp_tel2ca/x_global.txt'
-    y_global_fn = './tmp_tel2ca/y_global.txt'
-    f_global_fn = './tmp_tel2ca/f_global.txt'
+    x_global_fn = './tmp_tel2ca/tel_x_global.txt'
+    y_global_fn = './tmp_tel2ca/tel_y_global.txt'
+    f_global_fn = './tmp_tel2ca/tel_f_global.txt'
     tri_global_fn = './tmp_tel2ca/tri_global.txt'
-    X_global_fn = './tmp_tel2ca/X_global.txt'
-    Y_global_fn = './tmp_tel2ca/Y_global.txt'
-    F_global_fn = './tmp_tel2ca/F_global.txt'
+    X_global_fn = './tmp_tel2ca/ca_x_global.txt'
+    Y_global_fn = './tmp_tel2ca/ca_y_global.txt'
+    F_global_fn = './tmp_tel2ca/ca_f_global.txt'
     part_fn = './tmp_tel2ca/part.txt'
     empty_fn = './tmp_tel2ca/empty.txt'
 
@@ -183,11 +183,11 @@ if __name__ == '__main__':
         for i in range(nproc):
 
             # Local intermediate file names.
-            x_local_fn = './tmp_tel2ca/x_local_%d.txt' % i
-            y_local_fn = './tmp_tel2ca/y_local_%d.txt' % i
+            x_local_fn = './tmp_tel2ca/tel_x_local_%d.txt' % i
+            y_local_fn = './tmp_tel2ca/tel_y_local_%d.txt' % i
             tri_local_fn = './tmp_tel2ca/tri_local_%d.txt' % i
-            X_local_fn = './tmp_tel2ca/X_local_%d.txt' % i
-            Y_local_fn = './tmp_tel2ca/Y_local_%d.txt' % i
+            X_local_fn = './tmp_tel2ca/ca_x_local_%d.txt' % i
+            Y_local_fn = './tmp_tel2ca/ca_y_local_%d.txt' % i
             glo_local_fn = './tmp_tel2ca/glo_local_%d.txt' % i
 
             # Save local intermediate files.
@@ -250,11 +250,11 @@ if __name__ == '__main__':
         comm.Recv([f_loc, MPI.FLOAT], source = 0, tag = 501)
 
     # Local intermediate file names.
-    x_local_fn = './tmp_tel2ca/x_local_%d.txt' % rank
-    y_local_fn = './tmp_tel2ca/y_local_%d.txt' % rank
+    x_local_fn = './tmp_tel2ca/tel_x_local_%d.txt' % rank
+    y_local_fn = './tmp_tel2ca/tel_y_local_%d.txt' % rank
     tri_local_fn = './tmp_tel2ca/tri_local_%d.txt' % rank
-    X_local_fn = './tmp_tel2ca/X_local_%d.txt' % rank
-    Y_local_fn = './tmp_tel2ca/Y_local_%d.txt' % rank
+    X_local_fn = './tmp_tel2ca/ca_x_local_%d.txt' % rank
+    Y_local_fn = './tmp_tel2ca/ca_y_local_%d.txt' % rank
 
     # Load local mesh partition.
     if f_loc.shape[0] > 0:
