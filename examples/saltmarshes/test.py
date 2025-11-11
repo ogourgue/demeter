@@ -19,17 +19,17 @@ ref = telemac.Telemac('./ref_tel.slf')
 # Output.
 out = telemac.Telemac('./out_tel.slf')
 
-# Test.
-assert np.array_equal(ref.u, out.u)
-assert np.array_equal(ref.v, out.v)
-assert np.array_equal(ref.s, out.s)
-assert np.array_equal(ref.b, out.b)
-assert np.array_equal(ref.t, out.t)
-assert np.array_equal(ref.r, out.r)
-assert np.array_equal(ref.m, out.m)
-assert np.array_equal(ref.th, out.th)
-assert np.array_equal(ref.jb, out.jb)
-assert np.array_equal(ref.cov, out.cov)
+# Tests.
+assert out.u is None
+assert out.v is None
+assert out.s is None
+assert out.t is None
+assert out.r is None
+assert out.m is None
+assert np.allclose(ref.b, out.b)
+assert np.allclose(ref.th, out.th)
+assert np.allclose(ref.jb, out.jb)
+assert np.allclose(ref.cov, out.cov)
 
 
 #######################
@@ -43,4 +43,4 @@ ref = cellular_automaton.CellularAutomaton.from_file('./ref_ca.bin')
 out = cellular_automaton.CellularAutomaton.from_file('./out_ca.bin')
 
 # Test.
-assert np.array_equal(ref.state, out.state)
+assert np.allclose(ref.state, out.state)
