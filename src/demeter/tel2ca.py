@@ -5,6 +5,8 @@ Todo: Docstrings.
 """
 import os
 import numpy as np
+import sys
+from pathlib import Path
 
 ################################################################################
 def interpolation(x, y, f, tri, X, Y, nproc = 1, launcher = 'mpiexec'):
@@ -61,10 +63,13 @@ def interpolation(x, y, f, tri, X, Y, nproc = 1, launcher = 'mpiexec'):
             np.savetxt(X_global_fn, X)
         if not os.path.isfile(Y_global_fn):
             np.savetxt(Y_global_fn, Y)
+  
+        # Get the directory where demeter modules are installed.
+        demeter_path = Path(__file__).parent
+        script_path = demeter_path / 'tel2ca_interpolation.py'
 
         # Run Telemac to Cellular Automaton interpolation module.
-        os.system(launcher + ' -n %d python $DEMPATH/tel2ca_interpolation.py'
-                  % nproc)
+        os.system(f'{launcher} -n {nproc} python {script_path}')
 
         # Load intermediate file.
         F = np.loadtxt(F_global_fn)

@@ -5,6 +5,8 @@ Todo: Docstrings.
 """
 import os
 import numpy as np
+import sys
+from pathlib import Path
 
 ################################################################################
 def voronoi(X, Y, x, y, tri):
@@ -138,9 +140,12 @@ def voronoi_coverage(X, Y, STATE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
         if not os.path.isfile(tri_global_fn):
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
+        # Get the directory where demeter modules are installed.
+        demeter_path = Path(__file__).parent
+        script_path = demeter_path / 'ca2tel_voronoi_coverage.py'
+
         # Run Cellular Automaton to Telemac voronoi coverage.
-        os.system(launcher + ' -n %d python $DEMPATH/ca2tel_voronoi_coverage.py'
-                  % nproc)
+        os.system(f'{launcher} -n {nproc} python {script_path}')
 
         # Load intermediate file.
         cov = np.loadtxt(cov_global_fn)
@@ -207,9 +212,12 @@ def voronoi_age(X, Y, STATE, AGE, x, y, tri, nproc = 1, launcher = 'mpiexec'):
         if not os.path.isfile(tri_global_fn):
             np.savetxt(tri_global_fn, tri, fmt = '%d')
 
+        # Get the directory where demeter modules are installed.
+        demeter_path = Path(__file__).parent
+        script_path = demeter_path / 'ca2tel_voronoi_age.py'
+
         # Run Cellular Automaton to Telemac voronoi coverage.
-        os.system(launcher + ' -n %d python $DEMPATH/ca2tel_voronoi_age.py'
-                  % nproc)
+        os.system(f'{launcher} -n {nproc} python {script_path}')
 
         # Load intermediate file.
         age = np.loadtxt(age_global_fn)
