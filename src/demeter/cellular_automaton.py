@@ -2,6 +2,7 @@ import os
 import shutil
 
 import numpy as np
+from pathlib import Path
 
 ################################################################################
 class CellularAutomaton(object):
@@ -293,9 +294,12 @@ class CellularAutomaton(object):
             # Generate random seed (required for reproducibility).
             seed = np.random.randint(2 ** 32)
 
+             # Get the directory where demeter modules are installed.
+            demeter_path = Path(__file__).parent
+            script_path = demeter_path / 'cellular_automaton_run.py'
+
             # Run parallel Cellular Automaton run module.
-            os.system(launcher + ' -n %d python ' % nproc +
-                      '$DEMPATH/cellular_automaton_run.py %d %d' % (nt, seed))
+            os.system(f'{launcher} -n {nproc} python {script_path} {nt} {seed}')
 
             # Load intermediate file.
             state_1 = np.loadtxt(state_1_global_fn, dtype = int)
