@@ -1,9 +1,8 @@
 import os
 import sys
-
 import numpy as np
-
 import ppmodules.selafin_io_pp as pps
+from pathlib import Path
 
 ################################################################################
 class Telemac(object):
@@ -714,9 +713,12 @@ class Telemac(object):
             if not os.path.isfile(tri_global_fn):
                 np.savetxt(tri_global_fn, tri, fmt = '%d')
 
+             # Get the directory where demeter modules are installed.
+            demeter_path = Path(__file__).parent
+            script_path = demeter_path / 'telemac_diffusion.py'
+
             # Run parallel diffusion module.
-            os.system(launcher + ' -n %d python ' % nproc +
-                      '$DEMPATH/telemac_diffusion.py %f %f %f' % (nu, dt, t))
+            os.system(f'{launcher} -n {nproc} python {script_path} {nu} {dt} {t}')
 
             # Load intermediate file.
             bi = np.loadtxt(f1_global_fn)
