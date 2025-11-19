@@ -31,9 +31,6 @@ dependencies = [
     "mpi4py",
 ]
 
-[project.optional-dependencies]
-telemac = ["pputils @ git+https://codeberg.org/pprodano/pputils.git"]
-
 [project.urls]
 Homepage = "https://github.com/ogourgue/demeter"
 Repository = "https://github.com/ogourgue/demeter"
