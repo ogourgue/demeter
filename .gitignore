@@ -1,4 +1,3 @@
 __pycache__
-examples/mangroves/sbatch.sh
-examples/saltmarshes/sbatch.sh
 .DS_Store
+*.egg-info/
