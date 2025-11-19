@@ -10,6 +10,11 @@ Standard packages that must be installed:
 * numpy
 * scipy
 
-External package that must be installed (only if Demeter is used with Telemac):
-* pputils (https://codeberg.org/pprodano/pputils)
+### Optional: Telemac support
 
+To use Demeter with Telemac, you need to manually install pputils:
+```bash
+git clone https://codeberg.org/pprodano/pputils.git
+export PYTHONPATH="${PYTHONPATH}:/path/to/pputils"
+```
+**Note:** Telemac support via pputils may be replaced in future versions.
