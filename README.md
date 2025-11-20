@@ -2,24 +2,21 @@
 
 **Biogeomorphic modeling of coastal wetlands** - Couples vegetation dynamics with hydro-morphodynamics to study saltmarsh and mangrove evolution.
 
-## Quick Start
+[![Demeter Youtube video](https://img.youtube.com/vi/oSzcoR9WBtI/maxresdefault.jpg)](https://youtu.be/oSzcoR9WBtI)
+*Click on the image to watch 200 years of coastal landscape devlopments with Demeter*
 
-### Installation
+## Installation
 ```bash
 pip install git+https://github.com/ogourgue/demeter.git
 ```
-
-**Requirements:** Python 3.6+, numpy, scipy, matplotlib, mpi4py (auto-installed)
-
-### Optional: Telemac Coupling
-
-For Telemac integration, install [pputils](https://codeberg.org/pprodano/pputils) manually:
-```bash
-git clone https://codeberg.org/pprodano/pputils.git
-export PYTHONPATH="${PYTHONPATH}:/path/to/pputils"
-```
-
-Supported Telemac versions: **v8p2r0, v8p2r1** (more coming soon)
+- **Requirements:** Python 3.6+, numpy, scipy, matplotlib, mpi4py (auto-installed)
+- **For Telemac integration** (optional):
+  - Install [Telemac](http://wiki.opentelemac.org/doku.php?id=installation_on_linux) (supported versions: v8p2r0, v8p2r1 - more coming soon)
+  - Install [pputils](https://codeberg.org/pprodano/pputils):
+  ```bash
+  git clone https://codeberg.org/pprodano/pputils.git
+  export PYTHONPATH="${PYTHONPATH}:/path/to/pputils"
+  ```
 
 ## Citation
 
