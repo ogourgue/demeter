@@ -21,31 +21,11 @@ export PYTHONPATH="${PYTHONPATH}:/path/to/pputils"
 
 Supported Telemac versions: **v8p2r0, v8p2r1** (more coming soon)
 
-## Learn More
-
-**[Documentation & Examples](https://github.com/yourusername/demeter/wiki)**
-- Tutorials and workflows
-- Example applications (mangroves, salt marshes)
-- Theory and model description
-- API reference
-
 ## Citation
 
-If you use Demeter in your research:
-```bibtex
-@article{gourgue2024,
-  author = {Gourgue, Olivier and Belliard, Jean-Philippe and Xu, Yiyang and Kleinhans, Maarten G. and Fagherazzi, Sergio and Temmerman, Stijn},
-  title = {Dense vegetation hinders sediment transport toward saltmarsh interiors},
-  journal = {Limnology and Oceanography Letters},
-  volume = {9},
-  number = {6},
-  pages = {764-775},
-  doi = {https://doi.org/10.1002/lol2.10436},
-  year = {2024}
-}
-```
+If you use Demeter in your research, please cite:
 
-See all [publications using Demeter](https://github.com/yourusername/demeter/wiki/Publications)
+Gourgue, O., Belliard, J.P., Xu, Y.Y., Kleinhans, M.G., Fagherazzi, S., Temmerman, S. (2024), Dense vegetation hinders sediment transport toward saltmarsh interiors, Limnology and Oceanography Letters, 9(6), 764-775. [https://doi.org/10.1002/lol2.10436](https://doi.org/10.1002/lol2.10436)
 
 ## License
 
@@ -53,7 +33,5 @@ GNU General Public License v3.0 - see [LICENSE](LICENSE)
 
 ## Contact & Support
 
-Olivier Gourgue - ogourgue@gmail.com
-
-[Start a discussion](https://github.com/yourusername/demeter/discussions) - Questions, ideas, or feedback  
-[Report issues](https://github.com/yourusername/demeter/issues) - Bug reports and feature requests
+[Start a discussion](https://github.com/ogourgue/demeter/discussions) - Questions, ideas, or feedback  
+[Report issues](https://github.com/ogourgue/demeter/issues) - Bug reports and feature requests
