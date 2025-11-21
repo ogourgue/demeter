@@ -24,7 +24,8 @@ If you use Demeter in your research, please cite:
 
 Gourgue, O., Belliard, J.P., Xu, Y.Y., Kleinhans, M.G., Fagherazzi, S., Temmerman, S. (2024), Dense vegetation hinders sediment transport toward saltmarsh interiors, Limnology and Oceanography Letters, 9(6), 764-775 ([https://doi.org/10.1002/lol2.10436](https://doi.org/10.1002/lol2.10436))
 
-## Contact and support
+## Support
 
 [Start a discussion](https://github.com/ogourgue/demeter/discussions) - Questions, ideas, or feedback  
-[Report issues](https://github.com/ogourgue/demeter/issues) - Bug reports and feature requests
+[Report issues](https://github.com/ogourgue/demeter/issues) - Bug reports and feature requests  
+[Check the wiki](https://github.com/ogourgue/demeter/issues) - Tutorials, references
