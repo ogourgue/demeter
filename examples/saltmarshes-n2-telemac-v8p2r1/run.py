@@ -53,7 +53,7 @@ NU = 100
 NU_DT = 1
 
 # Number of tidal cycles in one morphological year.
-N = 1
+N = 2
 
 # Sea level rise rate.
 SLRR = .005
@@ -128,7 +128,6 @@ m = ((b - r) * RHO).reshape((1, 1, 1, tel.npoin))
 th = np.zeros((1, tel.npoin))
 jb = np.zeros((1, tel.npoin))
 cov = np.zeros((1, tel.npoin))
-age = np.zeros((1, tel.npoin))
 
 # Add times, variables and parameters to the Telemac instance.
 tel.add_times([0])
@@ -143,7 +142,6 @@ tel.add_variable(m, 'mass mud')
 tel.add_variable(th, 'hydroperiod')
 tel.add_variable(jb, 'exceeding bottom shear impulse')
 tel.add_variable(cov, 'coverage')
-tel.add_variable(age, 'age')
 
 # Create directory to store intermediate output files.
 if os.path.isdir('./tmp'):
@@ -152,7 +150,7 @@ os.mkdir('./tmp')
 
 # Initialize Telemac output instance.
 tel.export('./tmp.slf', step = -1)
-vnames = ['bottom', 'hydroperiod', 'ebs impulse', 'coverage', 'age']
+vnames = ['bottom', 'hydroperiod', 'ebs impulse', 'coverage']
 tel_out = telemac.Telemac('./tmp.slf', vnames = vnames)
 
 #######################
@@ -166,19 +164,16 @@ nx = int((np.max(tel.x) - np.min(tel.x)) / DX)
 ny = int((np.max(tel.y) - np.min(tel.y)) / DX)
 
 # Create cellular automaton.
-ca = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX, with_age = True)
+ca = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX)
 
 # Append initial time and state.
 ca.append_times(0)
 ca.append_state(np.zeros((nx, ny)))
-ca.append_age(np.zeros((nx, ny)))
 
 # Initialize Cellular Automaton output instance.
-ca_out = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX,
-                                              with_age = True)
+ca_out = cellular_automaton.CellularAutomaton(x0, y0, nx, ny, DX)
 ca_out.append_times(ca.times[0])
 ca_out.append_state(ca.state[0, :, :])
-ca_out.append_age(ca.age[0, :, :])
 
 ################################################################################
 ################################################################################
@@ -236,9 +231,7 @@ for year in range(NYEAR):
         # Coverage not updated between two steps of intra-annual loop.
         # If not final step, add dummy coverage variable before removing
         # previous time step.
-        if i < N - 1:
-            tel.append_variable(tel.cov, 'coverage')
-            tel.append_variable(tel.cov, 'age')
+        if i < N - 1: tel.append_variable(tel.cov, 'coverage')
 
         # Remove previous time step.
         tel.remove_time_step()
@@ -298,11 +291,10 @@ for year in range(NYEAR):
     # Remove previous time step.
     ca.remove_time_step()
 
-    # Append times, state and age to the Cellular Automaton output instance.
+    # Append times and state to the Cellular Automaton output instance.
     if (year + 1) % CA_NYEAR == 0:
         ca_out.append_times(ca.times[-1])
         ca_out.append_state(ca.state[-1, :, :])
-        ca_out.append_age(ca.age[-1, :, :])
 
     ##################################
     # Cellular automaton to Telemac. #
@@ -312,15 +304,9 @@ for year in range(NYEAR):
     cov = ca2tel.voronoi_coverage(ca.x, ca.y, ca.state[-1, :, :], tel.x, tel.y,
                                   tel.tri, nproc = NPROC)
 
-    # Age.
-    age = ca2tel.voronoi_age(ca.x, ca.y, ca.state[-1, :, :], ca.age[-1, :, :],
-                             tel.x, tel.y, tel.tri, nproc = NPROC)
-
-    # Append variables to the Telemac and Telemac output instances.
+    # Append coverage to the Telemac and Telemac output instances.
     tel.append_variable(cov.reshape((1, -1)), 'coverage')
-    tel.append_variable(age.reshape((1, -1)), 'age')
     tel_out.append_variable(cov.reshape((1, -1)), 'coverage')
-    tel_out.append_variable(age.reshape((1, -1)), 'age')
 
 ################################################################################
 ################################################################################
@@ -336,8 +322,7 @@ os.replace('./tmp/out_t2d_%03d_%02d.slf' % (NYEAR - 1, N - 1), './last_t2d.slf')
 os.replace('./tmp/out_gai_%03d_%02d.slf' % (NYEAR - 1, N - 1), './last_gai.slf')
 
 # Export Cellular Automaton results.
-ca_out.export('out_ca_state.bin')
-ca_out.export_age('out_ca_age.bin')
+ca_out.export('out_ca.bin')
 
 # Remove last initial condition file.
 os.remove('./tmp.slf')

@@ -233,6 +233,13 @@ for year in range(NYEAR):
         # Apply sea level rise to the next initial condition.
         tel.s[-1, :] += SLRR / N
 
+        # Coverage not updated between two steps of intra-annual loop.
+        # If not final step, add dummy coverage variable before removing
+        # previous time step.
+        if i < N - 1:
+            tel.append_variable(tel.cov, 'coverage')
+            tel.append_variable(tel.cov, 'age')
+
         # Remove previous time step.
         tel.remove_time_step()
 
